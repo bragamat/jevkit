@@ -1,9 +1,10 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/bragamat/jevkit/internal/typesafe"
@@ -142,7 +143,11 @@ func readItems(path string) ([]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return v.([]any), nil
+		list, ok := v.([]any)
+		if !ok {
+			return nil, inputErrorf("%s: expected a JSON array or JSONL", path)
+		}
+		return list, nil
 	}
 	var items []any
 	for n, l := range lineBreak.Split(text, -1) {
@@ -215,7 +220,7 @@ func (a *App) runTriage(ctx context.Context, itemsPath, specPath string, o triag
 			f, _ := v.(float64)
 			return f
 		}
-		sort.SliceStable(rows, func(i, j int) bool { return key(rows[i]) > key(rows[j]) })
+		slices.SortStableFunc(rows, func(x, y *typesafe.Fields) int { return cmp.Compare(key(y), key(x)) })
 	}
 	for _, row := range rows {
 		if a.jsonOut {

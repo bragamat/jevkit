@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/spf13/cobra"
 )
 
@@ -8,18 +11,35 @@ const rootLong = `jev-cli puts Jev, TypeSafe's System One model, in a coding age
 
 Reading: instead of pasting a file into the agent's context, ask Jev where the
 answer is and read only those lines.
-  find    FILE QUESTION        rank lines by meaning and say whether the answer exists
-  pick    QUESTION OPTIONS     choose one of N options (one per line, or a JSON list/object)
-  triage  ITEMS SPEC           ask the same typed questions about many items (JSON/JSONL)
-  check   CLAIM FILE           does the file support the claim?
 
-Deciding: hand Jev a binary or categorical call and follow the verdict.
-  decide  QUESTION OPTION...   choose between options          → ACT | CONFIRM | REPHRASE
-  yesno   QUESTION             yes or no                       → YES | NO | UNSURE
-  score   QUESTION LEVEL...    place on a scale, lowest first  → ACT | CONFIRM | REPHRASE
+Deciding: hand Jev a binary or categorical call and follow the verdict:
+decide and score answer ACT | CONFIRM | REPHRASE, yesno answers YES | NO | UNSURE.
 
-Output is short text; --json prints machine-readable JSON instead.
-Requires TYPESAFE_API_KEY. Unofficial; not affiliated with TypeSafe AI.`
+Output is short text; --json prints machine-readable JSON instead. Errors are one
+line on stderr; the exit status is 1 for a failed call, 2 for bad usage, 130 when
+interrupted. Requires TYPESAFE_API_KEY. Unofficial; not affiliated with TypeSafe AI.`
+
+// usageError is a command line the parser rejected: wrong arguments or flags.
+type usageError struct{ error }
+
+func (e usageError) Unwrap() error { return e.error }
+
+// IsUsageError reports whether err comes from a malformed command line.
+func IsUsageError(err error) bool {
+	var u usageError
+	// Cobra reports an unknown subcommand of the root as a plain error.
+	return errors.As(err, &u) || strings.HasPrefix(err.Error(), "unknown command ")
+}
+
+// usageArgs marks argument validation failures as usage errors.
+func usageArgs(check cobra.PositionalArgs) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := check(cmd, args); err != nil {
+			return usageError{err}
+		}
+		return nil
+	}
+}
 
 // NewRoot builds the command tree.
 func NewRoot(a *App, version string) *cobra.Command {
@@ -30,10 +50,16 @@ func NewRoot(a *App, version string) *cobra.Command {
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			a.command = cmd.Name()
+			return nil
 		},
 	}
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{err} })
+	root.AddGroup(
+		&cobra.Group{ID: "read", Title: "Reading:"},
+		&cobra.Group{ID: "decide", Title: "Deciding:"},
+	)
 	root.PersistentFlags().BoolVar(&a.jsonOut, "json", false, "print JSON")
 	root.PersistentFlags().StringVar(&a.model, "model", "", "model name (default: $TYPESAFE_DEFAULT_MODEL or jev-latest)")
 
@@ -126,6 +152,7 @@ func NewRoot(a *App, version string) *cobra.Command {
 		c.Flags().StringArrayVar(&e.Files, "ctx", nil, "file with evidence (repeatable; - reads stdin)")
 		c.Flags().StringVar(&e.Text, "text", "", "short inline evidence")
 		c.Flags().StringVar(&e.Risk, "risk", "low", "cost of a wrong call: low or high")
+		_ = c.RegisterFlagCompletionFunc("risk", cobra.FixedCompletions([]string{"low", "high"}, cobra.ShellCompDirectiveNoFileComp))
 	}
 
 	var today bool
@@ -148,6 +175,15 @@ func NewRoot(a *App, version string) *cobra.Command {
 		},
 	}
 
+	for _, c := range []*cobra.Command{find, pick, triage, check} {
+		c.GroupID = "read"
+	}
+	for _, c := range []*cobra.Command{decide, yesno, score} {
+		c.GroupID = "decide"
+	}
+	for _, c := range []*cobra.Command{find, pick, triage, check, decide, yesno, score, usage, models} {
+		c.Args = usageArgs(c.Args)
+	}
 	root.AddCommand(find, pick, triage, check, decide, yesno, score, usage, models)
 	return root
 }

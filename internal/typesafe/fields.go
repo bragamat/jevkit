@@ -3,6 +3,7 @@ package typesafe
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -15,13 +16,26 @@ type Fields struct {
 	values map[string]any
 }
 
-// NewFields returns an empty ordered object.
+// SyntaxError reports malformed JSON found by DecodeOrdered at a byte offset.
+type SyntaxError struct {
+	Msg    string
+	Offset int64
+}
+
+func (e *SyntaxError) Error() string {
+	return fmt.Sprintf("%s at offset %d", e.Msg, e.Offset)
+}
+
+// NewFields returns an empty ordered object. The zero Fields is also ready to use.
 func NewFields() *Fields {
 	return &Fields{values: map[string]any{}}
 }
 
 // Set adds or replaces a key; a replaced key keeps its original position.
 func (f *Fields) Set(key string, value any) *Fields {
+	if f.values == nil {
+		f.values = map[string]any{}
+	}
 	if _, ok := f.values[key]; !ok {
 		f.keys = append(f.keys, key)
 	}
@@ -45,8 +59,11 @@ func (f *Fields) Len() int {
 	return len(f.keys)
 }
 
-// MarshalJSON writes the object with its keys in insertion order.
+// MarshalJSON writes the object with its keys in insertion order; a nil *Fields is null.
 func (f *Fields) MarshalJSON() ([]byte, error) {
+	if f == nil {
+		return []byte("null"), nil
+	}
 	var b bytes.Buffer
 	b.WriteByte('{')
 	for i, k := range f.keys {
@@ -89,8 +106,8 @@ func DecodeOrdered(data []byte) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := dec.Token(); err != io.EOF {
-		return nil, &json.SyntaxError{Offset: dec.InputOffset()}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, &SyntaxError{Msg: "unexpected data after the JSON value", Offset: dec.InputOffset()}
 	}
 	return v, nil
 }
@@ -98,8 +115,8 @@ func DecodeOrdered(data []byte) (any, error) {
 func decodeValue(dec *json.Decoder) (any, error) {
 	tok, err := dec.Token()
 	if err != nil {
-		if err == io.EOF {
-			return nil, &json.SyntaxError{Offset: dec.InputOffset()}
+		if errors.Is(err, io.EOF) {
+			return nil, &SyntaxError{Msg: "unexpected end of JSON", Offset: dec.InputOffset()}
 		}
 		return nil, err
 	}
@@ -113,7 +130,10 @@ func decodeValue(dec *json.Decoder) (any, error) {
 				if err != nil {
 					return nil, err
 				}
-				key, _ := kt.(string)
+				key, ok := kt.(string)
+				if !ok {
+					return nil, &SyntaxError{Msg: "object key is not a string", Offset: dec.InputOffset()}
+				}
 				v, err := decodeValue(dec)
 				if err != nil {
 					return nil, err
@@ -134,7 +154,7 @@ func decodeValue(dec *json.Decoder) (any, error) {
 			_, err := dec.Token()
 			return arr, err
 		}
-		return nil, &json.SyntaxError{Offset: dec.InputOffset()}
+		return nil, &SyntaxError{Msg: fmt.Sprintf("unexpected %q", t), Offset: dec.InputOffset()}
 	default:
 		return t, nil
 	}

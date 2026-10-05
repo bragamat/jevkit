@@ -1,9 +1,10 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/bragamat/jevkit/internal/typesafe"
@@ -65,7 +66,7 @@ func (a *App) find(ctx context.Context, lines []numberedLine, question string) (
 			all = append(all, l)
 		}
 	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].Score > all[j].Score })
+	slices.SortStableFunc(all, func(x, y rankedLine) int { return cmp.Compare(y.Score, x.Score) })
 	return exists, all, nil
 }
 
@@ -111,8 +112,8 @@ func (a *App) runCheck(ctx context.Context, claim, path string) error {
 		return err
 	}
 	top := ranked[:min(6, len(ranked))]
-	section := append([]rankedLine(nil), top...)
-	sort.SliceStable(section, func(i, j int) bool { return section[i].N < section[j].N })
+	section := slices.Clone(top)
+	slices.SortStableFunc(section, func(x, y rankedLine) int { return cmp.Compare(x.N, y.N) })
 	var text strings.Builder
 	for i, l := range section {
 		if i > 0 {

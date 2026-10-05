@@ -1,8 +1,9 @@
 package cli
 
 import (
+	"cmp"
 	"context"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/bragamat/jevkit/internal/typesafe"
@@ -60,7 +61,7 @@ func byProbability(probs map[string]float64, keys []string) []option {
 	for _, k := range keys {
 		out = append(out, option{k, probs[k]})
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].P > out[j].P })
+	slices.SortStableFunc(out, func(x, y option) int { return cmp.Compare(y.P, x.P) })
 	return out
 }
 

@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -43,7 +45,7 @@ func newFake(t *testing.T, answer answerFunc) (*fakeAPI, *httptest.Server) {
 			t.Errorf("bad request body: %v", err)
 		}
 		req := apiRequest{Questions: raw.Questions, rawState: string(raw.State)}
-		json.Unmarshal(raw.State, &req.State)
+		_ = json.Unmarshal(raw.State, &req.State) // an absent state stays nil
 		f.mu.Lock()
 		f.requests = append(f.requests, req)
 		f.mu.Unlock()
@@ -51,9 +53,11 @@ func newFake(t *testing.T, answer answerFunc) (*fakeAPI, *httptest.Server) {
 		for id, q := range raw.Questions {
 			answers[id] = answer(req, id, q)
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		if err := json.NewEncoder(w).Encode(map[string]any{
 			"model": "jev-test", "answers": answers, "usage": map[string]int{"input_tokens": 100, "output_tokens": 1},
-		})
+		}); err != nil {
+			t.Errorf("writing response: %v", err)
+		}
 	}))
 	t.Cleanup(srv.Close)
 	return f, srv
@@ -90,7 +94,7 @@ func run(t *testing.T, a *App, args ...string) error {
 func writeFile(t *testing.T, name, content string) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return p
@@ -109,11 +113,12 @@ func choice(probs map[string]float64) map[string]any {
 func TestFindRanksAcrossWindows(t *testing.T) {
 	var doc strings.Builder
 	for i := 1; i <= 300; i++ {
-		if i == 270 {
+		switch {
+		case i == 270:
 			doc.WriteString("the deploy key lives in vault\n")
-		} else if i%7 == 0 {
+		case i%7 == 0:
 			doc.WriteString("\n")
-		} else {
+		default:
 			fmt.Fprintf(&doc, "filler line %d\n", i)
 		}
 	}
@@ -174,7 +179,7 @@ func TestFindRanksAcrossWindows(t *testing.T) {
 
 func TestPickTwoRounds(t *testing.T) {
 	var opts strings.Builder
-	for i := 0; i < 600; i++ {
+	for i := range 600 {
 		fmt.Fprintf(&opts, "opt-%03d\n", i)
 	}
 	path := writeFile(t, "options.txt", opts.String())
@@ -331,17 +336,19 @@ func TestDecideVerdicts(t *testing.T) {
 		{0.45, "low", "REPHRASE"},
 	}
 	for _, c := range cases {
-		_, srv := newFake(t, func(_ apiRequest, _ string, _ map[string]any) map[string]any {
-			return map[string]any{"type": "choice", "choice": "merge", "confidence": c.conf,
-				"probabilities": map[string]float64{"merge": c.conf, "wait": 1 - c.conf}}
+		t.Run(fmt.Sprintf("%.2f/%s", c.conf, c.risk), func(t *testing.T) {
+			_, srv := newFake(t, func(_ apiRequest, _ string, _ map[string]any) map[string]any {
+				return map[string]any{"type": "choice", "choice": "merge", "confidence": c.conf,
+					"probabilities": map[string]float64{"merge": c.conf, "wait": 1 - c.conf}}
+			})
+			a, out := testApp(t, srv)
+			if err := run(t, a, "decide", "Merge now?", "merge=CI is green", "wait", "--risk", c.risk, "--text", "CI green"); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasPrefix(out.String(), c.want+": merge") {
+				t.Errorf("got %s", out.String())
+			}
 		})
-		a, out := testApp(t, srv)
-		if err := run(t, a, "decide", "Merge now?", "merge=CI is green", "wait", "--risk", c.risk, "--text", "CI green"); err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(out.String(), c.want+": merge") {
-			t.Errorf("conf %.2f risk %s: %s", c.conf, c.risk, out.String())
-		}
 	}
 }
 
@@ -412,10 +419,11 @@ func TestInputErrorsAreOneLine(t *testing.T) {
 		"--risk must be low or high":                        {"yesno", "q", "--risk", "medium"},
 	}
 	for want, args := range cases {
-		err := run(t, a, args...)
-		if err == nil || err.Error() != want {
-			t.Errorf("%v: got %v, want %q", args, err, want)
-		}
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			if err := run(t, a, args...); err == nil || err.Error() != want {
+				t.Errorf("got %v, want %q", err, want)
+			}
+		})
 	}
 	if err := run(t, a, "triage", items, bad); err == nil || !strings.HasPrefix(err.Error(), "invalid JSON in "+bad+" (line 2, column ") {
 		t.Errorf("bad spec: %v", err)
@@ -436,14 +444,21 @@ func TestUsageSummary(t *testing.T) {
 		return map[string]any{"type": "noul", "noul": 0.9}
 	})
 	a, out := testApp(t, srv)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if err := run(t, a, "yesno", "q"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	f, _ := os.OpenFile(a.UsageLog, os.O_APPEND|os.O_WRONLY, 0o644)
-	f.WriteString(`{"ts":"2026-10-01T09:00:00","cmd":"find","input_tokens":2500000}` + "\nnot json\n")
-	f.Close()
+	f, err := os.OpenFile(a.UsageLog, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(`{"ts":"2026-10-01T09:00:00","cmd":"find","input_tokens":2500000}` + "\nnot json\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 	out.Reset()
 	if err := run(t, a, "usage"); err != nil {
 		t.Fatal(err)
@@ -475,7 +490,39 @@ func TestMissingAPIKey(t *testing.T) {
 func TestThousands(t *testing.T) {
 	for in, want := range map[int]string{0: "0", 999: "999", 1000: "1,000", 1234567: "1,234,567", -4200: "-4,200"} {
 		if got := thousands(in); got != want {
-			t.Errorf("thousands(%d) = %s", in, got)
+			t.Errorf("thousands(%d) = %s, want %s", in, got, want)
 		}
+	}
+}
+
+func TestUsageErrors(t *testing.T) {
+	_, srv := newFake(t, func(apiRequest, string, map[string]any) map[string]any { return nil })
+	a, _ := testApp(t, srv)
+	for name, args := range map[string][]string{
+		"unknown command": {"nope"},
+		"unknown flag":    {"yesno", "q", "--bogus"},
+		"missing args":    {"find"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := run(t, a, args...); err == nil || !IsUsageError(err) {
+				t.Fatalf("err = %v, want a usage error", err)
+			}
+		})
+	}
+	if err := run(t, a, "decide", "q", "a", "a"); err == nil || IsUsageError(err) {
+		t.Fatalf("input error classified as usage: %v", err)
+	}
+}
+
+func TestParallelStopsOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	out, err := parallel(ctx, 5, 2, func(context.Context, int) (int, error) { return 1, nil })
+	if !errors.Is(err, context.Canceled) || out != nil {
+		t.Fatalf("out=%v err=%v", out, err)
+	}
+	out, err = parallel(context.Background(), 4, 2, func(_ context.Context, i int) (int, error) { return i * i, nil })
+	if err != nil || fmt.Sprint(out) != "[0 1 4 9]" {
+		t.Fatalf("out=%v err=%v", out, err)
 	}
 }

@@ -2,12 +2,13 @@ package cli
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/bragamat/jevkit/internal/typesafe"
@@ -48,6 +49,9 @@ func (a *App) runUsage(today bool) error {
 			row.Calls++
 			row.InputTokens += rec.InputTokens
 		}
+		if err := sc.Err(); err != nil {
+			return inputErrorf("cannot read %s: %v", a.UsageLog, err)
+		}
 	}
 	rows := make([]usageRow, 0, len(byCmd))
 	total := usageRow{Command: "total"}
@@ -56,11 +60,8 @@ func (a *App) runUsage(today bool) error {
 		total.Calls += r.Calls
 		total.InputTokens += r.InputTokens
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].InputTokens != rows[j].InputTokens {
-			return rows[i].InputTokens > rows[j].InputTokens
-		}
-		return rows[i].Command < rows[j].Command
+	slices.SortFunc(rows, func(x, y usageRow) int {
+		return cmp.Or(cmp.Compare(y.InputTokens, x.InputTokens), cmp.Compare(x.Command, y.Command))
 	})
 	usd := float64(total.InputTokens) * usdPerMillionInputTokens / 1e6
 	if a.jsonOut {

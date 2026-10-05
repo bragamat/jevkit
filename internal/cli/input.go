@@ -60,9 +60,17 @@ func decodeJSON(data string, source string) (any, error) {
 	if err == nil {
 		return v, nil
 	}
+	offset := int64(-1)
 	var syntaxErr *json.SyntaxError
-	if errors.As(err, &syntaxErr) {
-		line, col := position(data, syntaxErr.Offset)
+	var ownErr *typesafe.SyntaxError
+	switch {
+	case errors.As(err, &syntaxErr):
+		offset = syntaxErr.Offset
+	case errors.As(err, &ownErr):
+		offset = ownErr.Offset
+	}
+	if offset >= 0 {
+		line, col := position(data, offset)
 		return nil, inputErrorf("invalid JSON in %s (line %d, column %d)", source, line, col)
 	}
 	return nil, inputErrorf("invalid JSON in %s: %v", source, err)

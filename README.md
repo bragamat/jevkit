@@ -125,8 +125,15 @@ and why.
 ## Output
 
 Text by default, short enough to land in an agent's context without cost. `--json` (before or after the
-subcommand) prints one JSON document per call, or JSONL for `triage`. Errors print one line on stderr and
-exit with status 1. A missing file, a bad JSON spec or a missing key never produces a stack trace.
+subcommand) prints one JSON document per call, or JSONL for `triage`. Errors print one line on stderr,
+prefixed with the subcommand. A missing file, a bad JSON spec or a missing key never produces a stack trace.
+
+| Exit status | Meaning |
+|---|---|
+| 0 | success |
+| 1 | the call failed (bad input, API error, network) |
+| 2 | usage error: unknown command or flag, wrong number of arguments |
+| 130 | interrupted (Ctrl-C or SIGTERM); in-flight requests are cancelled |
 
 ## Configuration
 
@@ -138,8 +145,14 @@ exit with status 1. A missing file, a bad JSON spec or a missing key never produ
 | `JEV_USAGE_LOG` | `$XDG_STATE_HOME/jev/usage.jsonl` |
 | `JEV_DECISION_LOG` | `$XDG_STATE_HOME/jev/decisions.jsonl` |
 
-Requests that fail with 408, 429, 5xx or a dropped connection are retried up to 3 times with
-exponential backoff, honoring `Retry-After`.
+Requests that fail with 408, 429 or 5xx, or with a transient network error (timeout, refused or reset
+connection, truncated response), are retried up to 3 times with exponential backoff. Other errors, such as
+a malformed `TYPESAFE_BASE_URL`, fail at once. A `Retry-After` header is honored up to 60 seconds; longer
+values fall back to the normal backoff, so the CLI never stalls an agent for minutes. (The official Python
+SDK honors any value and relies on its overall timeout instead.)
+
+Shell completion: `jev-cli completion bash|zsh|fish|powershell --help`. `jev-cli --version` prints the
+version, commit and build date.
 
 ## Files
 
@@ -164,8 +177,13 @@ go test ./...
 go build -o jev-cli ./cmd/jev-cli
 ```
 
-`scripts/ci.sh` fetches a pinned Go toolchain when none is installed, then runs gofmt, vet, tests and the
-build. The tests use a fake API server and never call TypeSafe.
+`scripts/ci.sh` fetches a pinned, checksum-verified Go toolchain when none is installed, then checks
+`go mod tidy`, gofmt and vet, runs the tests with the race detector, and builds. `LINT=1` adds
+[golangci-lint](.golangci.yml) and govulncheck; `TIDY=fix` rewrites `go.mod`/`go.sum` instead of failing.
+The tests use a fake API server and never call TypeSafe. `go test -fuzz FuzzDecodeOrdered ./internal/typesafe`
+fuzzes the order-preserving JSON decoder.
+
+Releases are cut by pushing a `vX.Y.Z` tag: CI runs first, then GoReleaser publishes the binaries.
 
 ## License
 

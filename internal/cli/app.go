@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bragamat/jevkit/internal/typesafe"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -133,15 +134,15 @@ func (a *App) appendLog(path string, record map[string]any) {
 	}
 	a.logLock.Lock()
 	defer a.logLock.Unlock()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}
 	defer f.Close()
-	f.Write(append(line, '\n'))
+	_, _ = f.Write(append(line, '\n')) // best effort, see above
 }
 
 // emit prints v as one line of JSON, without HTML escaping.
@@ -155,42 +156,38 @@ func (a *App) printf(format string, args ...any) {
 	fmt.Fprintf(a.Stdout, format, args...)
 }
 
+// cwd is recorded in the logs for context; an unknown directory is logged as "".
 func cwd() string {
-	d, _ := os.Getwd()
+	d, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
 	return d
 }
 
 // parallel runs fn for 0..n-1 with at most limit in flight and stops at the first error.
+// A cancelled ctx is reported as an error, so callers never see partial results as success.
 func parallel[T any](ctx context.Context, n, limit int, fn func(context.Context, int) (T, error)) ([]T, error) {
 	out := make([]T, n)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	sem := make(chan struct{}, limit)
-	var (
-		wg       sync.WaitGroup
-		once     sync.Once
-		firstErr error
-	)
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-			case <-ctx.Done():
-				return
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(limit)
+	for i := range n {
+		g.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				return err
 			}
-			defer func() { <-sem }()
 			v, err := fn(ctx, i)
 			if err != nil {
-				once.Do(func() { firstErr = err; cancel() })
-				return
+				return err
 			}
 			out[i] = v
-		}(i)
+			return nil
+		})
 	}
-	wg.Wait()
-	return out, firstErr
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func round(x float64, places int) float64 {

@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -21,10 +23,14 @@ const (
 	DefaultBaseURL = "https://api.typesafe.ai"
 	DefaultModel   = "jev-latest"
 
-	APIKeyEnv       = "TYPESAFE_API_KEY"
+	APIKeyEnv       = "TYPESAFE_API_KEY" //nolint:gosec // the variable name, not a credential
 	BaseURLEnv      = "TYPESAFE_BASE_URL"
 	DefaultModelEnv = "TYPESAFE_DEFAULT_MODEL"
 )
+
+// maxRetryAfter caps how long a Retry-After header can make the client wait. Longer
+// values fall back to the normal backoff, so a CLI never hangs for minutes.
+const maxRetryAfter = 60 * time.Second
 
 // ErrNoAPIKey is returned by NewFromEnv when TYPESAFE_API_KEY is empty.
 var ErrNoAPIKey = errors.New(APIKeyEnv + " is not set")
@@ -170,7 +176,7 @@ func (c *Client) SystemOne(ctx context.Context, req Request) (*Response, error) 
 	}
 	body, err := marshal(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encoding request: %w", err)
 	}
 	var out Response
 	if err := c.call(ctx, http.MethodPost, "/v1/systemone", body, &out); err != nil {
@@ -198,7 +204,7 @@ func (c *Client) call(ctx context.Context, method, path string, body []byte, out
 		}
 		delay := backoff(attempt)
 		var apiErr *APIError
-		if errors.As(err, &apiErr) && apiErr.retryAfter > 0 {
+		if errors.As(err, &apiErr) && apiErr.retryAfter > 0 && apiErr.retryAfter <= maxRetryAfter {
 			delay = apiErr.retryAfter
 		}
 		if err := c.sleep(ctx, delay); err != nil {
@@ -214,7 +220,7 @@ func (c *Client) once(ctx context.Context, method, path string, body []byte, att
 	}
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.BaseURL, "/")+path, rd)
 	if err != nil {
-		return err
+		return fmt.Errorf("building request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	req.Header.Set("Accept", "application/json")
@@ -227,12 +233,12 @@ func (c *Client) once(ctx context.Context, method, path string, body []byte, att
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return err
+		return transportError{err}
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return transportError{fmt.Errorf("reading response from %s: %w", path, err)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		text := strings.TrimSpace(string(data))
@@ -261,10 +267,29 @@ func retryable(ctx context.Context, err error) bool {
 		s := apiErr.Status
 		return s == http.StatusRequestTimeout || s == http.StatusTooManyRequests || (s >= 500 && s <= 599)
 	}
-	// Anything else that is not a decoding problem is a transport failure.
-	var decErr decodeError
-	return !errors.As(err, &decErr)
+	var tErr transportError
+	return errors.As(err, &tErr) && transient(tErr.error)
 }
+
+// transient reports whether a transport failure is worth retrying: a timeout or a
+// refused or dropped connection. A bad URL or a certificate error fails the same way
+// every time.
+func transient(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	var opErr *net.OpError
+	return errors.As(err, &opErr) ||
+		errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, syscall.ECONNRESET)
+}
+
+// transportError marks a failure to reach the API or to read its response.
+type transportError struct{ error }
+
+func (e transportError) Unwrap() error { return e.error }
 
 // decodeError marks a 2xx response whose body did not parse; retrying will not help.
 type decodeError struct{ error }
@@ -277,7 +302,7 @@ func backoff(attempt int) time.Duration {
 	if d > 5*time.Second || d <= 0 {
 		d = 5 * time.Second
 	}
-	return d - time.Duration(rand.Float64()*0.25*float64(d))
+	return d - time.Duration(rand.Float64()*0.25*float64(d)) //nolint:gosec // jitter needs no crypto randomness
 }
 
 func parseRetryAfter(h http.Header) time.Duration {
