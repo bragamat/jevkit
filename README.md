@@ -199,9 +199,7 @@ routing for one request.
 panels: requests per mode, why requests were not steered, Jev latency, and LLM and Jev tokens with cost.
 jev panels: the decisions other processes log, and today's calls per command. A switch turns routing
 on and off for the whole gateway, and only the dashboard page itself can flip it. Bind to `127.0.0.1` and
-publish over a private network such as `tailscale serve`, never to the internet. On a server, run
-`tailscale serve --bg --https=8789 http://127.0.0.1:8789` once; `jev gateway status` then prints the
-`https://<machine>.<tailnet>.ts.net:8789/dashboard` address.
+publish over a private network such as `tailscale serve`, never to the internet.
 
 | Variable | Default |
 |---|---|
@@ -213,7 +211,6 @@ publish over a private network such as `tailscale serve`, never to the internet.
 | `JEV_ON_NONE` | `force_none` (send `tool_choice: none` when Jev sees no tool needed); `passthrough` to leave it |
 | `JEV_ROUTING` | on (`false` starts with routing disabled) |
 | `JEV_BUDGET_MS` | `2500`, the total time Jev may add to one request |
-| `JEV_DASHBOARD_URL` | the dashboard address `jev gateway status` prints; by default the `tailscale serve` HTTPS name for port 8789 when there is one, else `http://127.0.0.1:8789/dashboard` |
 | `JEV_GATEWAY_LOG` | `$XDG_STATE_HOME/jev/gateway.jsonl` (rotated at 20 MB) |
 
 ## Output

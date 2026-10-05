@@ -526,26 +526,3 @@ func TestParallelStopsOnCancel(t *testing.T) {
 		t.Fatalf("out=%v err=%v", out, err)
 	}
 }
-
-func TestServedURLFindsTailscaleServeForPort(t *testing.T) {
-	status := []byte(`{"Web":{
-		"box.tail.ts.net:8445":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:8099"}}},
-		"box.tail.ts.net:8789":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:8789"}}},
-		"box.tail.ts.net:443":{"Handlers":{"/":{"Proxy":"8790"}}}}}`)
-	cases := map[int]string{8789: "https://box.tail.ts.net:8789", 8790: "https://box.tail.ts.net", 9999: ""}
-	for port, want := range cases {
-		if got := servedURL(status, port); got != want {
-			t.Errorf("port %d: %q, want %q", port, got, want)
-		}
-	}
-	if got := servedURL([]byte("not json"), 8789); got != "" {
-		t.Errorf("bad json: %q", got)
-	}
-}
-
-func TestDashboardURLPrefersEnv(t *testing.T) {
-	t.Setenv("JEV_DASHBOARD_URL", "https://dash.example/dashboard/")
-	if got := dashboardURL(t.Context(), "127.0.0.1", 8789); got != "https://dash.example/dashboard" {
-		t.Fatalf("got %q", got)
-	}
-}
