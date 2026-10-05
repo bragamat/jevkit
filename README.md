@@ -161,7 +161,26 @@ estimate. Nothing leaves your machine except the API calls themselves.
 
 ## Using it from an agent
 
-Add a short rule to your agent's instructions, for example in `CLAUDE.md` or `AGENTS.md`:
+The repository ships an [Agent Skill](skills/jev-cli/SKILL.md) that teaches a coding agent when and
+how to use `jev-cli`: read with `find` before opening a large file, `check` a claim before stating
+it, and hand judgment calls to `decide` / `yesno` / `score` and follow the verdict.
+
+**Claude Code** (plugin):
+
+```sh
+claude plugin marketplace add bragamat/jevkit
+claude plugin install jevkit@jevkit
+```
+
+**Codex, Cursor, Gemini CLI and other agents** that read `SKILL.md` folders:
+
+```sh
+npx skills add bragamat/jevkit
+```
+
+or copy `skills/jev-cli/` into the agent's skills directory (for Codex, `~/.codex/skills/`).
+
+Agents without skill support can take a short rule in `AGENTS.md` or `CLAUDE.md` instead:
 
 ```markdown
 - Before reading a large file to find something, run `jev-cli find FILE "question"` and read only the lines it returns.
