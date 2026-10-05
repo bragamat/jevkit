@@ -61,6 +61,13 @@ with a browser is quarantined; clear it with `xattr -d com.apple.quarantine jev-
 
 **With Go 1.26+:** `go install github.com/bragamat/jevkit/cmd/jev-cli@latest`.
 
+> [!NOTE]
+> The macOS binaries are not signed or notarized by Apple yet; that is on the way. Until then,
+> macOS may refuse to open a `jev-cli` downloaded with a browser ("cannot be opened because the
+> developer cannot be verified"). Homebrew and the install script are not affected. For a manual
+> download, run `xattr -d com.apple.quarantine jev-cli` once, or allow it in System Settings →
+> Privacy & Security.
+
 Then set your key and check the setup:
 
 ```sh
