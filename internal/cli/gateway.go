@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -116,8 +117,8 @@ func (a *App) runGateway(ctx context.Context) error {
 		mux.Handle("/", gw.Handler(l))
 		listeners = append(listeners, ln)
 		servers = append(servers, &http.Server{Handler: mux, ReadHeaderTimeout: 30 * time.Second})
-		_, _ = fmt.Fprintf(a.Stdout, "jev gateway: %s on %s → %s (dashboard %s/dashboard)\n",
-			l.Client, ln.Addr(), l.Upstream, localURL(cfg.Host, l.Port))
+		_, _ = fmt.Fprintf(a.Stdout, "jev gateway: %s on %s → %s (dashboard %s)\n",
+			l.Client, ln.Addr(), l.Upstream, dashboardURL(ctx, cfg.Host, l.Port))
 	}
 	if err := os.WriteFile(pidFile(), []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "jev gateway: could not write %s: %v\n", pidFile(), err)
@@ -162,6 +163,51 @@ func localURL(host string, port int) string {
 		host = "127.0.0.1"
 	}
 	return "http://" + net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+// dashboardURL is where a person opens the dashboard: JEV_DASHBOARD_URL when set,
+// else the HTTPS name "tailscale serve" publishes for the port (a remote machine
+// cannot open 127.0.0.1), else the local address.
+func dashboardURL(ctx context.Context, host string, port int) string {
+	if v := strings.TrimSpace(os.Getenv("JEV_DASHBOARD_URL")); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "tailscale", "serve", "status", "--json").Output(); err == nil {
+		if base := servedURL(out, port); base != "" {
+			return base + "/dashboard"
+		}
+	}
+	return localURL(host, port) + "/dashboard"
+}
+
+// servedURL finds, in "tailscale serve status --json" output, the HTTPS address
+// whose root proxies to the local port.
+func servedURL(status []byte, port int) string {
+	var st struct {
+		Web map[string]struct {
+			Handlers map[string]struct{ Proxy string }
+		}
+	}
+	if json.Unmarshal(status, &st) != nil {
+		return ""
+	}
+	p := strconv.Itoa(port)
+	targets := []string{p, "http://127.0.0.1:" + p, "http://localhost:" + p, "127.0.0.1:" + p, "localhost:" + p}
+	var found []string
+	for hostPort, web := range st.Web {
+		h, ok := web.Handlers["/"]
+		if !ok || !slices.Contains(targets, strings.TrimRight(h.Proxy, "/")) {
+			continue
+		}
+		found = append(found, "https://"+strings.TrimSuffix(hostPort, ":443"))
+	}
+	slices.Sort(found)
+	if len(found) == 0 {
+		return ""
+	}
+	return found[0]
 }
 
 type health struct {
@@ -318,7 +364,7 @@ func (a *App) gatewayStatus(ctx context.Context) error {
 		_, _ = fmt.Fprintf(a.Stdout, "%-6s %s  up  pid %d  → %s%s\n", l.Client, base, h.PID, h.Upstream, routing)
 	}
 	if down == 0 {
-		_, _ = fmt.Fprintf(a.Stdout, "dashboard %s/dashboard\n", localURL(cfg.Host, cfg.Listeners[0].Port))
+		_, _ = fmt.Fprintf(a.Stdout, "dashboard %s\n", dashboardURL(ctx, cfg.Host, cfg.Listeners[0].Port))
 		return nil
 	}
 	return errors.New("gateway not running; start it with: jev gateway start")
@@ -338,7 +384,7 @@ func (a *App) runAgent(ctx context.Context, agent string, args []string) error {
 			return a.gatewayStatus(ctx)
 		case "--dashboard":
 			cfg := gateway.FromEnv(stateDir())
-			_, _ = fmt.Fprintf(a.Stdout, "%s/dashboard\n", localURL(cfg.Host, cfg.Listeners[0].Port))
+			_, _ = fmt.Fprintln(a.Stdout, dashboardURL(ctx, cfg.Host, cfg.Listeners[0].Port))
 			return nil
 		}
 	}
