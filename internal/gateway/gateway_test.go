@@ -434,7 +434,7 @@ func TestProxyRoutesAndStreams(t *testing.T) {
 	if !strings.Contains(u.bodies[0], `"tool_choice":{"type":"function","name":"shell"}`) {
 		t.Fatalf("body not rewritten: %s", u.bodies[0])
 	}
-	ev := g.Events().Recent(1)[0]
+	ev := waitEvents(t, g, 1)[0]
 	if ev.Mode != modeForced || ev.Status != 200 || ev.Usage == nil || ev.Usage.Input != 70 || ev.Model != "gpt-5.5-codex" || ev.Tools != 5 {
 		t.Fatalf("event = %+v", ev)
 	}
@@ -456,7 +456,7 @@ func TestProxyReplaysRejectedRewrite(t *testing.T) {
 	if resp.StatusCode != http.StatusOK || len(u.bodies) != 2 || u.bodies[1] != codexBody {
 		t.Fatalf("status %d, %d upstream calls", resp.StatusCode, len(u.bodies))
 	}
-	if ev := g.Events().Recent(1)[0]; ev.Reason != "upstream_rejected_forced" {
+	if ev := waitEvents(t, g, 1)[0]; ev.Reason != "upstream_rejected_forced" {
 		t.Fatalf("reason = %q", ev.Reason)
 	}
 }
@@ -496,7 +496,7 @@ func TestProxyPassthroughCases(t *testing.T) {
 	if len(jev.calls) != 0 || u.bodies[0] != codexBody || u.bodies[1] != codexBody || u.paths[2] != "/base/models" {
 		t.Fatalf("jev calls %d, paths %v", len(jev.calls), u.paths)
 	}
-	evs := g.Events().Recent(10)
+	evs := waitEvents(t, g, 2)
 	if len(evs) != 2 || evs[0].Reason != "disabled_by_header" || evs[1].Reason != "routing_disabled" {
 		t.Fatalf("events = %+v", evs)
 	}
@@ -552,4 +552,21 @@ func get(t *testing.T, url string) (*http.Response, error) {
 		return nil, err
 	}
 	return http.DefaultClient.Do(req)
+}
+
+// waitEvents waits for n events: the gateway records a request after its
+// response has been sent, so the client can finish first.
+func waitEvents(t *testing.T, g *Gateway, n int) []Event {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		evs := g.Events().Recent(100)
+		if len(evs) >= n || time.Now().After(deadline) {
+			if len(evs) < n {
+				t.Fatalf("got %d events, want %d", len(evs), n)
+			}
+			return evs
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
