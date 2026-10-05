@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs the jev-cli binary from the GitHub releases of bragamat/jevkit on Linux or macOS.
+# Installs the jev binary from the GitHub releases of bragamat/jevkit on Linux or macOS.
 #
 #   curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh
 #
@@ -62,14 +62,18 @@ fetch "$base/$archive" "$tmp/$archive" || fail "cannot download $base/$archive"
 got="$(sha256 "$tmp/$archive")"
 [ "$got" = "$want" ] || fail "checksum mismatch for $archive (got $got, want $want)"
 
-tar -xzf "$tmp/$archive" -C "$tmp" jev-cli
+tar -xzf "$tmp/$archive" -C "$tmp" jev
 mkdir -p "$dir"
-# Replace through a temporary name so a running jev-cli is never left half-written.
-cp "$tmp/jev-cli" "$dir/.jev-cli.new"
-chmod 755 "$dir/.jev-cli.new"
-mv -f "$dir/.jev-cli.new" "$dir/jev-cli"
+# Replace through a temporary name so a running jev is never left half-written.
+cp "$tmp/jev" "$dir/.jev.new"
+chmod 755 "$dir/.jev.new"
+mv -f "$dir/.jev.new" "$dir/jev"
+# The binary was called jev-cli before v0.3.0; point an old copy at the new one.
+if [ -f "$dir/jev-cli" ] && [ ! -L "$dir/jev-cli" ]; then
+  ln -sf jev "$dir/jev-cli"
+fi
 
-echo "Installed $("$dir/jev-cli" --version) to $dir/jev-cli"
+echo "Installed $("$dir/jev" --version) to $dir/jev"
 case ":$PATH:" in
 *":$dir:"*) ;;
 *) echo "Add $dir to your PATH, for example: export PATH=\"$dir:\$PATH\"" ;;

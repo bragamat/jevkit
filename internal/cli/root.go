@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const rootLong = `jev-cli puts Jev, TypeSafe's System One model, in a coding agent's toolbox.
+const rootLong = `jev puts Jev, TypeSafe's System One model, in a coding agent's toolbox.
 
 Reading: instead of pasting a file into the agent's context, ask Jev where the
 answer is and read only those lines.
@@ -44,7 +44,7 @@ func usageArgs(check cobra.PositionalArgs) cobra.PositionalArgs {
 // NewRoot builds the command tree.
 func NewRoot(a *App, version string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "jev-cli",
+		Use:           "jev",
 		Short:         "Jev recipes for coding agents: read less, decide with calibrated confidence",
 		Long:          rootLong,
 		Version:       version,
@@ -61,6 +61,10 @@ func NewRoot(a *App, version string) *cobra.Command {
 		&cobra.Group{ID: "decide", Title: "Deciding:"},
 		&cobra.Group{ID: "gateway", Title: "Gateway:"},
 	)
+	// Handled in main before parsing, so the agent's own flags pass through; declared
+	// here only so --help lists them.
+	root.Flags().Bool("claude", false, "start Claude Code through the gateway; every later argument goes to claude")
+	root.Flags().Bool("codex", false, "start Codex through the gateway; every later argument goes to codex")
 	root.PersistentFlags().BoolVar(&a.jsonOut, "json", false, "print JSON")
 	root.PersistentFlags().StringVar(&a.model, "model", "", "model name (default: $TYPESAFE_DEFAULT_MODEL or jev-latest)")
 

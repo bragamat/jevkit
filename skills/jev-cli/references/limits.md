@@ -18,4 +18,4 @@ weak ([model jaggedness](https://docs.typesafe.ai/model-jaggedness)). Route thes
   threshold for a choice.
 - "X" and "not X" asked as two separate `yesno` questions need not add up to 1. Ask once.
 - `score` returns a position on your levels. Branch on the level; do not rebuild a number from it.
-- Accuracy drops with long, noisy evidence. Narrow it with `jev-cli find` before you decide.
+- Accuracy drops with long, noisy evidence. Narrow it with `jev find` before you decide.

@@ -42,8 +42,8 @@ jobs:
           WANT: ${{ inputs.version }}
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          jev-cli --version
-          test -z "$WANT" || jev-cli --version | grep -F "version ${WANT#v} "
+          jev --version
+          test -z "$WANT" || jev --version | grep -F "version ${WANT#v} "
 
   windows:
     strategy:
@@ -65,7 +65,7 @@ jobs:
           WANT: ${{ inputs.version }}
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable("Path", "User") + ";" + $env:Path
-          $got = jev-cli --version
+          $got = jev --version
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Write-Host $got
           if ($env:WANT -and -not ($got -like "*version $($env:WANT.TrimStart('v')) *")) { exit 1 }
@@ -80,14 +80,14 @@ jobs:
       - name: brew install
         run: |
           test -x /home/linuxbrew/.linuxbrew/bin/brew && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          brew install --cask bragamat/tap/jev-cli
+          brew install --cask bragamat/tap/jev
           echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
       - name: run
         env:
           WANT: ${{ inputs.version }}
         run: |
-          jev-cli --version
-          test -z "$WANT" || jev-cli --version | grep -F "version ${WANT#v} "
+          jev --version
+          test -z "$WANT" || jev --version | grep -F "version ${WANT#v} "
 
   scoop:
     runs-on: windows-latest
@@ -99,14 +99,14 @@ jobs:
           $shims = Join-Path $env:USERPROFILE "scoop\shims"
           $env:Path = "$shims;$env:Path"
           scoop bucket add bragamat https://github.com/bragamat/scoop-bucket
-          scoop install bragamat/jev-cli
+          scoop install bragamat/jev
           Add-Content $env:GITHUB_PATH $shims
       - name: run
         shell: pwsh
         env:
           WANT: ${{ inputs.version }}
         run: |
-          $got = jev-cli --version
+          $got = jev --version
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Write-Host $got
           if ($env:WANT -and -not ($got -like "*version $($env:WANT.TrimStart('v')) *")) { exit 1 }

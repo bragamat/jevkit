@@ -1,8 +1,8 @@
 version: 2
 
 builds:
-  - main: ./cmd/jev-cli
-    binary: jev-cli
+  - main: ./cmd/jev
+    binary: jev
     env:
       - CGO_ENABLED=0
     flags:
@@ -38,8 +38,8 @@ notarize:
         timeout: 20m
 
 homebrew_casks:
-  - name: jev-cli
-    binaries: [jev-cli]
+  - name: jev
+    binaries: [jev]
     homepage: https://github.com/bragamat/jevkit
     description: Read less and decide with calibrated confidence through TypeSafe's Jev model
     license: MIT
@@ -55,11 +55,11 @@ homebrew_casks:
         # The binary is not notarized; drop the quarantine flag so macOS runs it.
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/jev-cli"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/jev"]
           end
 
 scoops:
-  - name: jev-cli
+  - name: jev
     homepage: https://github.com/bragamat/jevkit
     description: Read less and decide with calibrated confidence through TypeSafe's Jev model
     license: MIT

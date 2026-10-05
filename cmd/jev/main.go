@@ -1,4 +1,4 @@
-// Command jev-cli is a Jev toolkit for coding agents.
+// Command jev is a Jev toolkit for coding agents.
 package main
 
 import (
@@ -36,6 +36,11 @@ func run() int {
 	if agent, ok := strings.CutPrefix(name, "jev-"); ok && (agent == "claude" || agent == "codex") {
 		root.SetArgs(append([]string{agent}, os.Args[1:]...))
 	}
+	// jev --claude ARGS / jev --codex ARGS: everything after the flag belongs to
+	// the agent, so it is dispatched before cobra parses any flags.
+	if len(os.Args) > 1 && (os.Args[1] == "--claude" || os.Args[1] == "--codex") {
+		root.SetArgs(append([]string{strings.TrimPrefix(os.Args[1], "--")}, os.Args[2:]...))
+	}
 	cmd, err := root.ExecuteContextC(ctx)
 	if err == nil {
 		return 0
@@ -44,7 +49,7 @@ func run() int {
 	if errors.As(err, &exit) {
 		return exit.Code
 	}
-	name = "jev-cli"
+	name = "jev"
 	if cmd != nil && cmd != root {
 		name += " " + cmd.Name()
 	}

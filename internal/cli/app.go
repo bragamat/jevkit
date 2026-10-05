@@ -1,4 +1,4 @@
-// Package cli implements the jev-cli command: Jev recipes that let coding agents
+// Package cli implements the jev command: Jev recipes that let coding agents
 // read less and delegate small judgment calls.
 package cli
 
@@ -70,7 +70,7 @@ func stateFile(env, name string) string {
 	return filepath.Join(dir, name)
 }
 
-// stateDir is where jev-cli keeps its logs: $XDG_STATE_HOME/jev.
+// stateDir is where jev keeps its logs: $XDG_STATE_HOME/jev.
 func stateDir() string {
 	dir := os.Getenv("XDG_STATE_HOME")
 	if dir == "" {

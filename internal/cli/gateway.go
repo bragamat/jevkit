@@ -36,7 +36,7 @@ extended thinking), a forced tool_choice for Codex. If Jev is slow, unsure or un
 request goes through unchanged.
 
 Claude Code listens on 127.0.0.1:8789, Codex on 127.0.0.1:8790; both serve /dashboard.
-Start agents through it with "jev-cli claude" and "jev-cli codex".`,
+Start agents through it with "jev --claude [ARGS]" and "jev --codex [ARGS]".`,
 		GroupID: "gateway",
 	}
 	run := &cobra.Command{
@@ -69,7 +69,7 @@ Start agents through it with "jev-cli claude" and "jev-cli codex".`,
 		return &cobra.Command{
 			Use:                name + " [ARGS...]",
 			Short:              short,
-			GroupID:            "gateway",
+			Hidden:             true, // reached through jev --claude / --codex
 			DisableFlagParsing: true,
 			RunE:               func(cmd *cobra.Command, args []string) error { return a.runAgent(cmd.Context(), name, args) },
 		}
@@ -321,7 +321,7 @@ func (a *App) gatewayStatus(ctx context.Context) error {
 		_, _ = fmt.Fprintf(a.Stdout, "dashboard %s/dashboard\n", localURL(cfg.Host, cfg.Listeners[0].Port))
 		return nil
 	}
-	return errors.New("gateway not running; start it with: jev-cli gateway start")
+	return errors.New("gateway not running; start it with: jev gateway start")
 }
 
 // runAgent makes sure the gateway is up, then runs the agent with its base

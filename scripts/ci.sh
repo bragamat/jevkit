@@ -29,5 +29,5 @@ if [ "${LINT:-0}" = 1 ]; then
   go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 fi
 mkdir -p dist
-CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION:-}" -o dist/jev-cli ./cmd/jev-cli
-ls -la dist/jev-cli
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION:-}" -o dist/jev ./cmd/jev
+ls -la dist/jev

@@ -1,9 +1,9 @@
-# jev-cli triage
+# jev triage
 
 Ask the same typed questions about every item of a list, and read only the result table.
 
 ```sh
-jev-cli triage ITEMS SPEC [--label field] [--sort question_id] [--context FILE [--batch 20]] [--json]
+jev triage ITEMS SPEC [--label field] [--sort question_id] [--context FILE [--batch 20]] [--json]
 ```
 
 ## Items
@@ -44,7 +44,7 @@ EOF
 ## Output
 
 ```console
-$ jev-cli triage tickets.jsonl spec.json --label id --sort urgent
+$ jev triage tickets.jsonl spec.json --label id --sort urgent
 T-104 | urgent=0.97 | area=infra | area_conf=0.91 | effort=1.2 | effort_conf=0.74
 T-101 | urgent=0.12 | area=docs | area_conf=0.88 | effort=0.1 | effort_conf=0.93
 ```

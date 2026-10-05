@@ -1,12 +1,12 @@
 {
   "name": "jevkit",
-  "description": "jev-cli skills for coding agents",
+  "description": "jev skills for coding agents",
   "owner": {"name": "Mateus Braga"},
   "plugins": [
     {
       "name": "jevkit",
       "source": "./",
-      "description": "Teach the agent to read less and decide with calibrated confidence through jev-cli."
+      "description": "Teach the agent to read less and decide with calibrated confidence through jev."
     }
   ]
 }

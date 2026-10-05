@@ -1,5 +1,5 @@
 // Package dashboard serves the gateway's live dashboard: routed requests from
-// the gateway, and the decisions and usage jev-cli logs from other processes.
+// the gateway, and the decisions and usage jev logs from other processes.
 package dashboard
 
 import (
@@ -25,7 +25,7 @@ var indexHTML []byte
 const (
 	keepDecisions = 500
 	keepUsage     = 5000
-	// seedBytes is how much of each jev-cli log is read at start.
+	// seedBytes is how much of each jev log is read at start.
 	seedBytes = 2 << 20
 	pollEvery = time.Second
 )
@@ -45,7 +45,7 @@ type message struct {
 	data any
 }
 
-// New starts tailing jev-cli's logs until ctx ends.
+// New starts tailing jev's logs until ctx ends.
 func New(ctx context.Context, gw *gateway.Gateway) *Server {
 	cfg := gw.Config()
 	s := &Server{

@@ -37,7 +37,7 @@ type Config struct {
 	MaxMessageChars int
 
 	// EventLog keeps one JSON line per routed request; DecisionLog and UsageLog
-	// are jev-cli's own logs, shown on the dashboard.
+	// are jev's own logs, shown on the dashboard.
 	EventLog    string
 	DecisionLog string
 	UsageLog    string
@@ -49,7 +49,7 @@ const (
 	DefaultOpenAIPort    = 8790
 )
 
-// FromEnv reads the configuration. stateDir is where jev-cli keeps its logs.
+// FromEnv reads the configuration. stateDir is where jev keeps its logs.
 func FromEnv(stateDir string) Config {
 	return Config{
 		Host: envString("JEV_GATEWAY_HOST", "127.0.0.1"),

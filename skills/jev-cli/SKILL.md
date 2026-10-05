@@ -1,11 +1,11 @@
 ---
 name: jev-cli
-description: "Use jev-cli (TypeSafe's Jev model) to read less and to make calibrated judgment calls. Use it BEFORE reading a large file, log or doc page to find something (jev-cli find), before choosing one of many tools, files or options (pick), when the same question applies to many items (triage), before stating a fact about code or docs (check), and whenever a yes/no or multiple-choice decision about your own work depends on meaning: classifying, choosing between approaches, judging whether something applies, is current, or is relevant (decide, yesno, score)."
+description: "Use jev (TypeSafe's Jev model) to read less and to make calibrated judgment calls. Use it BEFORE reading a large file, log or doc page to find something (jev find), before choosing one of many tools, files or options (pick), when the same question applies to many items (triage), before stating a fact about code or docs (check), and whenever a yes/no or multiple-choice decision about your own work depends on meaning: classifying, choosing between approaches, judging whether something applies, is current, or is relevant (decide, yesno, score)."
 ---
 
-# jev-cli: read less, decide with calibrated confidence
+# jev: read less, decide with calibrated confidence
 
-`jev-cli` puts Jev, TypeSafe's System One model, in your toolbox. Jev answers *typed* questions
+`jev` puts Jev, TypeSafe's System One model, in your toolbox. Jev answers *typed* questions
 (choice, yes/no, score) with probabilities in about a second, at $0.042 per million input tokens.
 Two things follow:
 
@@ -21,15 +21,15 @@ You still own the work. Jev owns narrow judgments you would otherwise make by gu
 
 ```sh
 # Linux and macOS: Homebrew when present, otherwise the install script (~/.local/bin).
-command -v jev-cli >/dev/null || { command -v brew >/dev/null && brew install --cask bragamat/tap/jev-cli; } \
+command -v jev >/dev/null || { command -v brew >/dev/null && brew install --cask bragamat/tap/jev; } \
   || curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh
 test -n "$TYPESAFE_API_KEY" || echo "TYPESAFE_API_KEY is not set: ask the user for a key from console.typesafe.ai"
 ```
 
 ```powershell
-# Windows: Scoop when present, otherwise the install script (%LOCALAPPDATA%\Programs\jev-cli).
-if (-not (Get-Command jev-cli -ErrorAction SilentlyContinue)) {
-  if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop bucket add bragamat https://github.com/bragamat/scoop-bucket; scoop install bragamat/jev-cli }
+# Windows: Scoop when present, otherwise the install script (%LOCALAPPDATA%\Programs\jev).
+if (-not (Get-Command jev -ErrorAction SilentlyContinue)) {
+  if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop bucket add bragamat https://github.com/bragamat/scoop-bucket; scoop install bragamat/jev }
   else { irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex }
 }
 if (-not $env:TYPESAFE_API_KEY) { "TYPESAFE_API_KEY is not set: ask the user for a key from console.typesafe.ai" }
@@ -41,10 +41,10 @@ Installing software on the user's machine needs their go-ahead if your instructi
 
 | Situation | Command |
 |---|---|
-| Find where a large file answers a question, and whether it does at all | `jev-cli find FILE "question" [--top 5]` |
-| A statement you are about to publish: does the source back it? | `jev-cli check "claim" FILE` |
-| Choose one of many items (tools, skills, files, tables) | `jev-cli pick "question" OPTIONS_FILE [--state FILE]` |
-| The same questions about many items | `jev-cli triage ITEMS SPEC [--label field] [--sort id]` |
+| Find where a large file answers a question, and whether it does at all | `jev find FILE "question" [--top 5]` |
+| A statement you are about to publish: does the source back it? | `jev check "claim" FILE` |
+| Choose one of many items (tools, skills, files, tables) | `jev pick "question" OPTIONS_FILE [--state FILE]` |
+| The same questions about many items | `jev triage ITEMS SPEC [--label field] [--sort id]` |
 
 - **`find`** prints `exists=` (does the file answer the question: `answers` ≥ 0.6, `partial`
   ≥ 0.3) and the top lines with their scores. Read only those lines, with a few lines around them
@@ -60,9 +60,9 @@ Installing software on the user's machine needs their go-ahead if your instructi
 ## Deciding
 
 ```sh
-jev-cli decide "QUESTION" opt1="what it means" opt2="what it means" ... [--ctx FILE|-] [--text "..."] [--risk high]
-jev-cli yesno  "QUESTION" [--yes "what counts as yes"] [--no "what counts as no"] [--ctx ...] [--text ...]
-jev-cli score  "QUESTION" "lowest level" "middle level" "highest level" [--ctx ...] [--text ...]
+jev decide "QUESTION" opt1="what it means" opt2="what it means" ... [--ctx FILE|-] [--text "..."] [--risk high]
+jev yesno  "QUESTION" [--yes "what counts as yes"] [--no "what counts as no"] [--ctx ...] [--text ...]
+jev score  "QUESTION" "lowest level" "middle level" "highest level" [--ctx ...] [--text ...]
 ```
 
 1. **Recognize the decision.** "Is this test failure caused by my change?", "which module owns
@@ -109,8 +109,8 @@ More on the model's limits: [references/limits.md](references/limits.md).
 - Text by default, short enough to keep. `--json` (anywhere on the line) prints one JSON
   document per call, JSONL for `triage`. Print little: `--top`, `head`, selected fields.
 - Errors are one line on stderr. Exit status 1 means the call failed (bad input, API, network),
-  2 means you misused the CLI (read `jev-cli CMD --help`), 130 means interrupted.
+  2 means you misused the CLI (read `jev CMD --help`), 130 means interrupted.
 - **Quote heredocs that hold a spec or question with backticks** (`<<'EOF'`). Unquoted, the shell
   runs the backticks and Jev gets a question with the field names missing, with no error.
 - Every decision is appended to `$XDG_STATE_HOME/jev/decisions.jsonl` for audit;
-  `jev-cli usage [--today]` sums the tokens Jev read and their cost.
+  `jev usage [--today]` sums the tokens Jev read and their cost.

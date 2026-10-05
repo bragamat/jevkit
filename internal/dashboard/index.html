@@ -83,10 +83,10 @@ tr.new td { animation: flash 1.2s ease-out; }
     <thead><tr><th>time</th><th>client</th><th>model</th><th>mode</th><th>tool</th><th>conf</th><th>reason</th><th>status</th><th>jev ms</th><th>total</th><th>tokens in/out</th></tr></thead>
     <tbody id="requests"></tbody></table></div></section>
   <section class="grid cols2">
-    <div class="panel"><h2>jev-cli decisions</h2><div class="scroll"><table>
+    <div class="panel"><h2>jev decisions</h2><div class="scroll"><table>
       <thead><tr><th>time</th><th>kind</th><th>question</th><th>verdict</th><th>conf</th></tr></thead>
       <tbody id="decisions"></tbody></table></div></div>
-    <div class="panel"><h2>jev-cli today, by command</h2><table>
+    <div class="panel"><h2>jev today, by command</h2><table>
       <thead><tr><th>command</th><th style="text-align:right">calls</th><th style="text-align:right">input tokens</th><th style="text-align:right">cost</th></tr></thead>
       <tbody id="cmds"></tbody></table></div>
   </section>
@@ -100,7 +100,7 @@ const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.round
 const usd = (n) => "$" + (n < 0.01 ? n.toFixed(4) : n.toFixed(2));
 const pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "–";
 const hms = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const jevTime = (ts) => new Date(ts); // jev-cli writes local time without a zone
+const jevTime = (ts) => new Date(ts); // jev writes local time without a zone
 
 function filtered() {
   const client = $("client").value, range = +$("range").value, since = range ? Date.now() - range * 1000 : 0;
@@ -141,7 +141,7 @@ function renderTiles(ev) {
     ["Jev latency", lat.length ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) + " ms" : "–", lat.length ? `p95 ${p95(lat)} ms` : ""],
     ["LLM tokens", fmt(llmIn + llmOut), `${pct(cached, llmIn)} of input cached`],
     ["Jev tokens (gateway)", fmt(jevIn), usd(jevIn * S.usd / 1e6)],
-    ["jev-cli today", fmt(cliIn), usd(cliIn * S.usd / 1e6)],
+    ["jev today", fmt(cliIn), usd(cliIn * S.usd / 1e6)],
   ];
   $("tiles").innerHTML = tiles.map(([l, v, s]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 }
@@ -190,7 +190,7 @@ function renderRequests(ev) {
     <td class="num">${e.confidence ? e.confidence.toFixed(2) : ""}</td><td class="muted">${esc(e.reason)}${e.jev?.error ? ` <span title="${esc(e.jev.error)}">⚠</span>` : ""}</td>
     <td class="num">${e.status}</td><td class="num">${e.jev ? e.jev.latencyMs : ""}</td><td class="num">${(e.durationMs / 1000).toFixed(1)} s</td>
     <td class="num">${e.usage ? fmt(e.usage.input) + " / " + fmt(e.usage.output) : ""}</td></tr>`).join("")
-    : `<tr><td colspan="11" class="empty">no requests yet: start an agent with jev-cli claude or jev-cli codex</td></tr>`;
+    : `<tr><td colspan="11" class="empty">no requests yet: start an agent with jev --claude or jev --codex</td></tr>`;
 }
 
 function renderJev() {
@@ -208,7 +208,7 @@ function renderJev() {
   }
   const rows = Object.entries(by).sort((a, b) => b[1].tokens - a[1].tokens);
   $("cmds").innerHTML = rows.length ? rows.map(([c, r]) => `<tr><td>${esc(c)}</td><td class="num">${r.calls}</td><td class="num">${fmt(r.tokens)}</td><td class="num">${usd(r.tokens * S.usd / 1e6)}</td></tr>`).join("")
-    : `<tr><td colspan="4" class="empty">no jev-cli calls today</td></tr>`;
+    : `<tr><td colspan="4" class="empty">no jev calls today</td></tr>`;
 }
 
 function uptime() {

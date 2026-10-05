@@ -1,9 +1,9 @@
 # jevkit
 
-`jev-cli` is a command-line toolkit that puts **Jev**, TypeSafe's System One model, in a coding agent's toolbox.
+`jev` is a command-line toolkit that puts **Jev**, TypeSafe's System One model, in a coding agent's toolbox.
 
 Coding agents (Claude Code, Codex, Cursor, …) spend most of their budget re-reading context. Every file an
-agent pastes into the conversation is paid for again on every following turn. `jev-cli` gives the agent two
+agent pastes into the conversation is paid for again on every following turn. `jev` gives the agent two
 cheaper moves:
 
 - **Read less.** Ask Jev *where* the answer is and read only those lines, instead of reading the file.
@@ -24,17 +24,17 @@ Prebuilt binaries for Linux, macOS and Windows (amd64 and arm64). No Go toolchai
 **Homebrew** (macOS and Linux):
 
 ```sh
-brew install --cask bragamat/tap/jev-cli
+brew install --cask bragamat/tap/jev
 ```
 
 **Scoop** (Windows):
 
 ```powershell
 scoop bucket add bragamat https://github.com/bragamat/scoop-bucket
-scoop install bragamat/jev-cli
+scoop install bragamat/jev
 ```
 
-`brew upgrade` and `scoop update jev-cli` pick up new releases.
+`brew upgrade` and `scoop update jev` pick up new releases.
 
 **Install script, Linux and macOS:**
 
@@ -50,29 +50,29 @@ irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex
 
 The scripts download the archive for your OS and CPU from the
 [latest release](https://github.com/bragamat/jevkit/releases/latest), verify it against
-`checksums.txt`, and install `jev-cli` to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\jev-cli`,
+`checksums.txt`, and install `jev` to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\jev`,
 added to your user `PATH`). `JEV_VERSION=0.1.1` pins a version and `JEV_INSTALL_DIR` changes the
 directory; run the same command again to upgrade.
 
 **Manually:** download `jevkit_<version>_<os>_<arch>` from the
 [releases page](https://github.com/bragamat/jevkit/releases), check it with `sha256sum -c checksums.txt
---ignore-missing`, and put `jev-cli` (or `jev-cli.exe`) on your `PATH`. On macOS, a file downloaded
-with a browser is quarantined; clear it with `xattr -d com.apple.quarantine jev-cli`.
+--ignore-missing`, and put `jev` (or `jev.exe`) on your `PATH`. On macOS, a file downloaded
+with a browser is quarantined; clear it with `xattr -d com.apple.quarantine jev`.
 
-**With Go 1.26+:** `go install github.com/bragamat/jevkit/cmd/jev-cli@latest`.
+**With Go 1.26+:** `go install github.com/bragamat/jevkit/cmd/jev@latest`.
 
 > [!NOTE]
 > The macOS binaries are not signed or notarized by Apple yet; that is on the way. Until then,
-> macOS may refuse to open a `jev-cli` downloaded with a browser ("cannot be opened because the
+> macOS may refuse to open a `jev` downloaded with a browser ("cannot be opened because the
 > developer cannot be verified"). Homebrew and the install script are not affected. For a manual
-> download, run `xattr -d com.apple.quarantine jev-cli` once, or allow it in System Settings →
+> download, run `xattr -d com.apple.quarantine jev` once, or allow it in System Settings →
 > Privacy & Security.
 
 Then set your key and check the setup:
 
 ```sh
 export TYPESAFE_API_KEY=...
-jev-cli models
+jev models
 ```
 
 ## Reading
@@ -80,7 +80,7 @@ jev-cli models
 ### `find FILE QUESTION` — rank lines by meaning
 
 ```console
-$ jev-cli find docs/deploy.md "where does the deploy key come from?" --top 3
+$ jev find docs/deploy.md "where does the deploy key come from?" --top 3
 exists=0.91 (answers)  docs/deploy.md
   0.84  L212: The deploy key is read from Vault at boot (secret/deploy/key).
   0.05  L48: Keys rotate every 90 days.
@@ -94,7 +94,7 @@ Long files are split into windows of 250 lines that run in parallel.
 ### `check CLAIM FILE` — does the source back the claim?
 
 ```console
-$ jev-cli check "The cache TTL is one hour" config/README.md
+$ jev check "The cache TTL is one hour" config/README.md
 contradicts (conf 0.88, exists 0.93)
   L31: Responses are cached for 10 minutes.
 ```
@@ -121,7 +121,7 @@ the context the choice depends on.
 ```
 
 ```console
-$ jev-cli triage tickets.jsonl spec.json --label id --sort urgent
+$ jev triage tickets.jsonl spec.json --label id --sort urgent
 T-104 | urgent=0.97 | area=infra | area_conf=0.91 | effort=1.2 | effort_conf=0.74
 T-101 | urgent=0.12 | area=docs | area_conf=0.88 | effort=0.1 | effort_conf=0.93
 ```
@@ -136,7 +136,7 @@ context goes once per batch of `--batch` items (default 20): the state becomes
 The agent states the evidence, asks, and follows the verdict:
 
 ```console
-$ jev-cli decide "Is this failure caused by the change under review?" yes no=pre-existing \
+$ jev decide "Is this failure caused by the change under review?" yes no=pre-existing \
     --ctx failing-test.log --text "The test also fails on main." --risk high
 CONFIRM: no  (conf 0.81, risk high, jev-1.13)
   no=0.81  yes=0.19
@@ -149,7 +149,7 @@ CONFIRM: no  (conf 0.81, risk high, jev-1.13)
 | `score QUESTION LEVEL...` | score, levels lowest first | `ACT`, `CONFIRM`, `REPHRASE` |
 
 Evidence comes from `--ctx FILE` (repeatable; `-` reads stdin) and `--text`. It is capped at 60,000
-characters: filter first with `jev-cli find` and send only what the decision needs.
+characters: filter first with `jev find` and send only what the decision needs.
 
 `--risk` sets how costly a wrong call is. The bands follow TypeSafe's
 [confidence guidance](https://docs.typesafe.ai/confidence):
@@ -169,19 +169,21 @@ and why.
 
 ## Gateway
 
-`jev-cli gateway` is a local proxy between a coding agent and its LLM. Before each request reaches the
+`jev gateway` is a local proxy between a coding agent and its LLM. Before each request reaches the
 model, Jev reads the conversation and the tool list and predicts which tool the next step needs. When it is
 confident, the gateway steers the request; otherwise it passes the request through unchanged. Responses,
 including streams, go back byte for byte.
 
 ```sh
-jev-cli claude            # Claude Code through the gateway (starts it if needed)
-jev-cli codex             # Codex through the gateway (ChatGPT login or API key)
-jev-cli gateway status    # ports, upstreams, routing state
-jev-cli gateway start|stop|run
+jev --claude [ARGS]   # Claude Code through the gateway (starts it if needed)
+jev --codex [ARGS]    # Codex through the gateway (ChatGPT login or API key)
+jev gateway status    # ports, upstreams, routing state
+jev gateway start|stop|run
 ```
 
-A `jev-claude` or `jev-codex` symlink to `jev-cli` behaves like `jev-cli claude` / `jev-cli codex`.
+Everything after `--claude` or `--codex` goes to the agent unchanged, for example
+`jev --claude --dangerously-skip-permissions` or `jev --codex --yolo`. A `jev-claude` or `jev-codex`
+symlink to `jev` behaves like `jev --claude` / `jev --codex`.
 
 | Agent | Port | API | How it steers |
 |---|---|---|---|
@@ -193,9 +195,9 @@ and an upstream 400/422 on a rewritten body is replayed with the original body. 
 `x-jev-gateway-mode`, `-tool`, `-reason`, `-confidence` and `-latency-ms`. Send `x-jev-gateway: off` to skip
 routing for one request.
 
-**Dashboard.** `http://127.0.0.1:8789/dashboard` shows the gateway and jev-cli live over SSE. Gateway
+**Dashboard.** `http://127.0.0.1:8789/dashboard` shows the gateway and jev live over SSE. Gateway
 panels: requests per mode, why requests were not steered, Jev latency, and LLM and Jev tokens with cost.
-jev-cli panels: the decisions other processes log, and today's calls per command. A switch turns routing
+jev panels: the decisions other processes log, and today's calls per command. A switch turns routing
 on and off for the whole gateway, and only the dashboard page itself can flip it. Bind to `127.0.0.1` and
 publish over a private network such as `tailscale serve`, never to the internet.
 
@@ -240,18 +242,18 @@ a malformed `TYPESAFE_BASE_URL`, fail at once. A `Retry-After` header is honored
 values fall back to the normal backoff, so the CLI never stalls an agent for minutes. (The official Python
 SDK honors any value and relies on its overall timeout instead.)
 
-Shell completion: `jev-cli completion bash|zsh|fish|powershell --help`. `jev-cli --version` prints the
+Shell completion: `jev completion bash|zsh|fish|powershell --help`. `jev --version` prints the
 version, commit and build date.
 
 ## Files
 
-`jev-cli usage [--today]` sums the local usage log: calls and input tokens per subcommand, with a cost
+`jev usage [--today]` sums the local usage log: calls and input tokens per subcommand, with a cost
 estimate. Nothing leaves your machine except the API calls themselves.
 
 ## Using it from an agent
 
 The repository ships an [Agent Skill](skills/jev-cli/SKILL.md) that teaches a coding agent when and
-how to use `jev-cli`: read with `find` before opening a large file, `check` a claim before stating
+how to use `jev`: read with `find` before opening a large file, `check` a claim before stating
 it, and hand judgment calls to `decide` / `yesno` / `score` and follow the verdict.
 
 **Claude Code** (plugin):
@@ -272,9 +274,9 @@ or copy `skills/jev-cli/` into the agent's skills directory (for Codex, `~/.code
 Agents without skill support can take a short rule in `AGENTS.md` or `CLAUDE.md` instead:
 
 ```markdown
-- Before reading a large file to find something, run `jev-cli find FILE "question"` and read only the lines it returns.
-- Before stating a fact about code or docs, run `jev-cli check "claim" FILE`.
-- For a yes/no or multiple-choice judgment about your own work, run `jev-cli decide` / `jev-cli yesno` with the
+- Before reading a large file to find something, run `jev find FILE "question"` and read only the lines it returns.
+- Before stating a fact about code or docs, run `jev check "claim" FILE`.
+- For a yes/no or multiple-choice judgment about your own work, run `jev decide` / `jev yesno` with the
   evidence and follow the verdict: ACT → proceed, CONFIRM → gather more evidence, REPHRASE → rethink the question.
 ```
 
@@ -282,7 +284,7 @@ Agents without skill support can take a short rule in `AGENTS.md` or `CLAUDE.md`
 
 ```sh
 go test ./...
-go build -o jev-cli ./cmd/jev-cli
+go build -o jev ./cmd/jev
 ```
 
 `scripts/ci.sh` fetches a pinned, checksum-verified Go toolchain when none is installed, then checks
