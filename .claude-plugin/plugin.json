@@ -1,7 +1,7 @@
 {
   "name": "jevkit",
   "description": "Skill that teaches coding agents to use jev-cli: read less with find/check/pick/triage and make calibrated decisions with decide/yesno/score.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {"name": "Mateus Braga"},
   "homepage": "https://github.com/bragamat/jevkit",
   "repository": "https://github.com/bragamat/jevkit",

@@ -19,11 +19,34 @@ tokens, so a lookup costs a small fraction of what pasting the file would.
 
 ## Install
 
+Prebuilt binaries for Linux, macOS and Windows (amd64 and arm64). No Go toolchain needed.
+
+**Linux and macOS:**
+
 ```sh
-go install github.com/bragamat/jevkit/cmd/jev-cli@latest
+curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh
 ```
 
-Or download a binary from the [releases page](https://github.com/bragamat/jevkit/releases).
+**Windows** (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex
+```
+
+The scripts download the archive for your OS and CPU from the
+[latest release](https://github.com/bragamat/jevkit/releases/latest), verify it against
+`checksums.txt`, and install `jev-cli` to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\jev-cli`,
+added to your user `PATH`). `JEV_VERSION=0.1.1` pins a version and `JEV_INSTALL_DIR` changes the
+directory; run the same command again to upgrade.
+
+**Manually:** download `jevkit_<version>_<os>_<arch>` from the
+[releases page](https://github.com/bragamat/jevkit/releases), check it with `sha256sum -c checksums.txt
+--ignore-missing`, and put `jev-cli` (or `jev-cli.exe`) on your `PATH`. On macOS, a file downloaded
+with a browser is quarantined; clear it with `xattr -d com.apple.quarantine jev-cli`.
+
+**With Go 1.26+:** `go install github.com/bragamat/jevkit/cmd/jev-cli@latest`.
+
+Then set your key and check the setup:
 
 ```sh
 export TYPESAFE_API_KEY=...

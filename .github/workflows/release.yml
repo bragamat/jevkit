@@ -27,3 +27,9 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  install:
+    needs: goreleaser
+    uses: ./.github/workflows/install.yml
+    with:
+      version: ${{ github.ref_name }}

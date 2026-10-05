@@ -1,0 +1,71 @@
+name: install
+
+# Runs the one-line installers on every OS against a published release.
+on:
+  push:
+    branches: [main]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml]
+  pull_request:
+    paths: [install.sh, install.ps1, .github/workflows/install.yml]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: release to install (default latest)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck install.sh
+
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: install with sh
+        env:
+          JEV_VERSION: ${{ inputs.version }}
+        run: sh install.sh
+      - name: run
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          jev-cli --version
+          test -z "$WANT" || jev-cli --version | grep -F "version ${WANT#v} "
+
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [pwsh, powershell]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: install
+        env:
+          JEV_VERSION: ${{ inputs.version }}
+        run: ./install.ps1
+      - name: run from a new shell
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          $env:Path = [Environment]::GetEnvironmentVariable("Path", "User") + ";" + $env:Path
+          $got = jev-cli --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Write-Host $got
+          if ($env:WANT -and -not ($got -like "*version $($env:WANT.TrimStart('v')) *")) { exit 1 }

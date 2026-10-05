@@ -20,11 +20,11 @@ You still own the work. Jev owns narrow judgments you would otherwise make by gu
 ## Before the first call
 
 ```sh
-command -v jev-cli || go install github.com/bragamat/jevkit/cmd/jev-cli@latest
+command -v jev-cli || curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh   # Windows: irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex
 test -n "$TYPESAFE_API_KEY" || echo "TYPESAFE_API_KEY is not set: ask the user for a key from console.typesafe.ai"
 ```
 
-Never print, log or commit the key. If it is missing, stop and ask the user; do not work around it.
+Installing software on the user's machine needs their go-ahead if your instructions require it. Never print, log or commit the key. If it is missing, stop and ask the user; do not work around it.
 
 ## Reading
 
