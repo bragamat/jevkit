@@ -22,6 +22,21 @@ archives:
 checksum:
   name_template: checksums.txt
 
+# Signs and notarizes the macOS binaries with a Developer ID certificate, from the Linux runner.
+# Off until the MACOS_SIGN_P12 secret exists, so releases keep working without it.
+notarize:
+  macos:
+    - enabled: '{{ if index .Env "MACOS_SIGN_P12" }}true{{ else }}false{{ end }}'
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
+
 homebrew_casks:
   - name: jev-cli
     binaries: [jev-cli]
