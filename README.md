@@ -21,13 +21,28 @@ tokens, so a lookup costs a small fraction of what pasting the file would.
 
 Prebuilt binaries for Linux, macOS and Windows (amd64 and arm64). No Go toolchain needed.
 
-**Linux and macOS:**
+**Homebrew** (macOS and Linux):
+
+```sh
+brew install --cask bragamat/tap/jev-cli
+```
+
+**Scoop** (Windows):
+
+```powershell
+scoop bucket add bragamat https://github.com/bragamat/scoop-bucket
+scoop install bragamat/jev-cli
+```
+
+`brew upgrade` and `scoop update jev-cli` pick up new releases.
+
+**Install script, Linux and macOS:**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh
 ```
 
-**Windows** (PowerShell):
+**Install script, Windows** (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex

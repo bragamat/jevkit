@@ -1,6 +1,6 @@
 name: install
 
-# Runs the one-line installers on every OS against a published release.
+# Runs the one-line installers, Homebrew and Scoop on every OS against a published release.
 on:
   push:
     branches: [main]
@@ -65,6 +65,47 @@ jobs:
           WANT: ${{ inputs.version }}
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable("Path", "User") + ";" + $env:Path
+          $got = jev-cli --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Write-Host $got
+          if ($env:WANT -and -not ($got -like "*version $($env:WANT.TrimStart('v')) *")) { exit 1 }
+
+  homebrew:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: brew install
+        run: |
+          test -x /home/linuxbrew/.linuxbrew/bin/brew && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install --cask bragamat/tap/jev-cli
+          echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+      - name: run
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          jev-cli --version
+          test -z "$WANT" || jev-cli --version | grep -F "version ${WANT#v} "
+
+  scoop:
+    runs-on: windows-latest
+    steps:
+      - name: scoop install
+        shell: pwsh
+        run: |
+          Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+          $shims = Join-Path $env:USERPROFILE "scoop\shims"
+          $env:Path = "$shims;$env:Path"
+          scoop bucket add bragamat https://github.com/bragamat/scoop-bucket
+          scoop install bragamat/jev-cli
+          Add-Content $env:GITHUB_PATH $shims
+      - name: run
+        shell: pwsh
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
           $got = jev-cli --version
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Write-Host $got
