@@ -22,5 +22,39 @@ archives:
 checksum:
   name_template: checksums.txt
 
+homebrew_casks:
+  - name: jev-cli
+    binaries: [jev-cli]
+    homepage: https://github.com/bragamat/jevkit
+    description: Read less and decide with calibrated confidence through TypeSafe's Jev model
+    license: MIT
+    skip_upload: auto
+    repository:
+      owner: bragamat
+      name: homebrew-tap
+      git:
+        url: git@github.com:bragamat/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
+    hooks:
+      post:
+        # The binary is not notarized; drop the quarantine flag so macOS runs it.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/jev-cli"]
+          end
+
+scoops:
+  - name: jev-cli
+    homepage: https://github.com/bragamat/jevkit
+    description: Read less and decide with calibrated confidence through TypeSafe's Jev model
+    license: MIT
+    skip_upload: auto
+    repository:
+      owner: bragamat
+      name: scoop-bucket
+      git:
+        url: git@github.com:bragamat/scoop-bucket.git
+        private_key: "{{ .Env.SCOOP_BUCKET_DEPLOY_KEY }}"
+
 changelog:
   sort: asc
