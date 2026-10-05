@@ -2,175 +2,354 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0c10">
 <title>Jev Gateway</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23161a23'/%3E%3Cpath d='M9 19.5a7 7 0 0 0 14 0V8' stroke='%2389a7ff' stroke-width='3.4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='23' cy='8' r='2.4' fill='%2367e8c3'/%3E%3C/svg%3E">
 <style>
 :root {
-  --bg: #0d1014; --panel: #151a21; --panel2: #1b2129; --line: #262e38; --text: #e3e8ee;
-  --muted: #8b97a5; --accent: #6cb6ff; --hint: #b58cff; --forced: #4cc38a; --none: #e0b252;
-  --pass: #5b6573; --bad: #f2777a; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bg: #0a0c10; --surface: #11141b; --raised: #171b24; --line: #222838; --line-soft: #1a1f2b;
+  --text: #e7eaf1; --muted: #8b93a7; --faint: #5d6579;
+  --accent: #89a7ff; --accent-2: #67e8c3; --danger: #f87171; --warn: #fbbf24;
+  --hint: #a78bfa; --forced: #34d399; --none: #fbbf24; --pass: #3f4a5e;
+  --radius: 14px; --gap: 14px;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
-h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .2px; }
-h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
-main { padding: 16px 20px 40px; display: grid; gap: 16px; max-width: 1400px; margin: 0 auto; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); display: inline-block; margin-right: 6px; }
-.dot.on { background: var(--forced); box-shadow: 0 0 8px var(--forced); }
-.muted { color: var(--muted); }
-.spacer { flex: 1; }
-select, button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; font: inherit; }
-.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
-.switch .track { width: 38px; height: 21px; border-radius: 11px; background: var(--pass); position: relative; transition: background .15s; }
-.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: left .15s; }
-.switch.on .track { background: var(--forced); }
-.switch.on .track::after { left: 19px; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
-.grid { display: grid; gap: 16px; }
-.cols2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
-.card b { font-size: 15px; }
-.card .mono { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-.tile .v { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.tile .l { color: var(--muted); font-size: 12px; }
-.tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
-svg { display: block; width: 100%; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-.bars div { display: grid; grid-template-columns: minmax(120px, 210px) 1fr 44px; gap: 10px; align-items: center; margin: 5px 0; font-size: 13px; }
-.bars .bar { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
-.bars .bar span { display: block; height: 100%; background: var(--accent); }
-.bars .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
-.scroll { overflow: auto; max-height: 460px; }
-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
-td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-td.t { white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
-.chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 12px; font-weight: 500; background: var(--pass); color: #fff; }
-.chip.hint { background: var(--hint); } .chip.forced { background: var(--forced); color: #08130d; } .chip.none { background: var(--none); color: #1a1406; }
-.chip.ACT, .chip.YES { background: var(--forced); color: #08130d; } .chip.CONFIRM, .chip.UNSURE { background: var(--none); color: #1a1406; } .chip.REPHRASE, .chip.NO { background: var(--bad); }
-.q { max-width: 620px; }
-tr.new td { animation: flash 1.2s ease-out; }
-@keyframes flash { from { background: #24405e; } to { background: transparent; } }
-.empty { color: var(--muted); padding: 10px 0; }
-@media (max-width: 640px) { header, main { padding-left: 16px; padding-right: 16px; } .tile .v { font-size: 20px; } }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-image: radial-gradient(1200px 500px at 85% -10%, #1a2140 0%, transparent 60%), radial-gradient(900px 400px at -10% 0%, #0f2a26 0%, transparent 55%);
+  background-attachment: fixed; min-height: 100vh;
+}
+button, select { font: inherit; color: inherit; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)) 48px; }
+
+/* top bar */
+.top { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); background: rgba(10, 12, 16, .72); border-bottom: 1px solid var(--line-soft); }
+.bar { display: flex; align-items: center; gap: 12px; padding: 12px 0; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.01em; font-size: 16px; margin-right: auto; }
+.brand svg { width: 28px; height: 28px; flex: none; }
+.brand small { color: var(--muted); font-weight: 500; font-size: 12px; display: block; letter-spacing: 0; }
+.live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.live.on i { background: var(--accent-2); box-shadow: 0 0 0 0 rgba(103, 232, 195, .6); animation: pulse 2s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(103, 232, 195, 0); } 100% { box-shadow: 0 0 0 0 rgba(103, 232, 195, 0); } }
+
+.toggle { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px 4px 4px; font-size: 13px; white-space: nowrap; }
+.toggle:focus-visible, .seg button:focus-visible, .req:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle .knob { width: 38px; height: 22px; border-radius: 999px; background: #2a3142; position: relative; transition: background .2s; flex: none; }
+.toggle .knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9cfdb; transition: transform .2s; }
+.toggle.on .knob { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.toggle.on .knob::after { transform: translateX(16px); background: #fff; }
+.toggle.busy { opacity: .5; pointer-events: none; }
+
+.top .wrap { padding-bottom: 0; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 10px; padding: 0 0 12px; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; flex: none; }
+.seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 7px; color: var(--muted); cursor: pointer; font-size: 13px; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* layout */
+.grid { display: grid; gap: var(--gap); margin-top: var(--gap); grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-7 { grid-column: span 7; } .span-5 { grid-column: span 5; } .span-4 { grid-column: span 4; }
+@media (max-width: 1080px) { .span-8, .span-7, .span-5, .span-4 { grid-column: span 12; } }
+.card { background: linear-gradient(180deg, rgba(255,255,255,.018), transparent 40%), var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.card h2 { margin: 0 0 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.card h2 .sub { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--faint); margin-left: auto; font-size: 12px; }
+
+/* overview */
+.overview { display: grid; grid-template-columns: 210px 1fr; gap: 18px; align-items: center; }
+@media (max-width: 640px) { .overview { grid-template-columns: 1fr; justify-items: center; } }
+.donut { position: relative; width: 190px; height: 190px; }
+.donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.donut .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.donut .center b { font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.donut .center span { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.legend { display: grid; gap: 8px; width: 100%; }
+.legend .row { display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center; font-size: 13px; }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+.legend .n { font-variant-numeric: tabular-nums; font-weight: 600; }
+.legend .p { font-variant-numeric: tabular-nums; color: var(--faint); width: 44px; text-align: right; }
+.legend .what { color: var(--muted); font-size: 12px; display: block; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { padding: 14px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line-soft); min-width: 0; }
+.kpi .l { color: var(--muted); font-size: 12px; }
+.kpi .v { font-size: 24px; font-weight: 650; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .s { color: var(--faint); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .s.bad { color: var(--danger); }
+.meter { height: 4px; border-radius: 4px; background: #232a39; margin-top: 10px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; transition: width .4s; }
+
+/* chart */
+.chart { width: 100%; height: 200px; display: block; }
+.chart text { fill: var(--faint); font-size: 11px; font-family: var(--mono); }
+.chart .grid-line { stroke: var(--line-soft); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.keys span { display: inline-flex; align-items: center; gap: 6px; }
+.keys i { width: 9px; height: 9px; border-radius: 3px; }
+
+/* reasons */
+.reasons { display: grid; gap: 10px; }
+.reason { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; }
+.reason code { font-family: var(--mono); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
+.reason .n { font-variant-numeric: tabular-nums; color: var(--muted); }
+.reason .track { grid-column: 1 / -1; height: 6px; border-radius: 6px; background: #1d2330; overflow: hidden; }
+.reason .track i { display: block; height: 100%; background: var(--pass); border-radius: 6px; }
+
+/* requests feed */
+.feed { display: grid; gap: 6px; max-height: 620px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; overscroll-behavior: contain; }
+.req { display: grid; grid-template-columns: 4px 74px 64px 92px minmax(0, 1fr) 90px 64px 80px 96px; gap: 12px; align-items: center; padding: 10px 12px 10px 0; border-radius: 10px; background: var(--raised); border: 1px solid transparent; cursor: pointer; font-size: 13px; }
+.req:hover { border-color: var(--line); }
+.req > .stripe { align-self: stretch; border-radius: 10px 0 0 10px; margin: -10px 0; }
+.req .t, .req .num { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.req .num { text-align: right; }
+.req .tool { font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req .tool .dim { color: var(--faint); font-family: inherit; }
+.req.new { animation: arrive 1.6s ease-out; }
+@keyframes arrive { from { background: #20304f; } }
+.client { font-size: 12px; color: var(--text); }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: lowercase; letter-spacing: .02em; }
+.pill.hint { background: rgba(167,139,250,.15); color: var(--hint); }
+.pill.forced { background: rgba(52,211,153,.14); color: var(--forced); }
+.pill.none { background: rgba(251,191,36,.14); color: var(--none); }
+.pill.passthrough { background: rgba(139,147,167,.12); color: var(--muted); }
+.conf { display: flex; align-items: center; gap: 6px; }
+.conf .meter { flex: 1; margin: 0; height: 4px; }
+.conf span { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 28px; text-align: right; }
+.detail { grid-column: 2 / -1; display: none; font-size: 12px; color: var(--muted); padding-top: 4px; border-top: 1px dashed var(--line); margin-top: 2px; }
+.req.open .detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 18px; padding-top: 10px; }
+.detail b { color: var(--text); font-weight: 500; font-family: var(--mono); overflow-wrap: anywhere; }
+.detail .wide { grid-column: 1 / -1; }
+.probs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.probs span { font-family: var(--mono); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--text); }
+.warn { color: var(--danger); }
+@media (max-width: 860px) {
+  .req { grid-template-columns: 4px auto auto 1fr auto auto; row-gap: 6px; }
+  .req .c-time, .req .c-client, .req .c-mode { grid-row: 1; }
+  .req .c-conf, .req .c-lat, .req .c-dur, .req .c-tok { grid-row: 2; }
+  .req .c-tool { grid-column: 2 / -1; grid-row: 3; }
+  .req .c-time { grid-column: 2; } .req .c-client { grid-column: 3; } .req .c-mode { grid-column: 5 / 7; justify-self: end; }
+  .req .c-conf { grid-column: 2 / 4; } .req .c-lat { grid-column: 4; } .req .c-dur { grid-column: 5; } .req .c-tok { grid-column: 6; }
+  .req > .stripe { grid-row: 1 / span 3; }
+  .detail { grid-column: 2 / -1; }
+}
+.thead { display: grid; grid-template-columns: 4px 74px 64px 92px minmax(0, 1fr) 90px 64px 80px 96px; gap: 12px; padding: 0 12px 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--faint); }
+.thead .num { text-align: right; }
+@media (max-width: 860px) { .thead { display: none; } }
+
+/* jev cli */
+.decisions { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; overscroll-behavior: contain; }
+.dec { padding: 10px 12px; border-radius: 10px; background: var(--raised); display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: baseline; }
+.dec .q { grid-column: 1 / -1; color: var(--text); overflow-wrap: anywhere; }
+.dec .meta { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.dec .verdict { font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 1px 7px; border-radius: 6px; }
+.v-good { background: rgba(52,211,153,.14); color: var(--forced); }
+.v-mid { background: rgba(251,191,36,.14); color: var(--warn); }
+.v-bad { background: rgba(248,113,113,.14); color: var(--danger); }
+.cmds { display: grid; gap: 8px; }
+.cmd { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 14px; align-items: center; font-size: 13px; }
+.cmd code { font-family: var(--mono); }
+.cmd .num { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; text-align: right; }
+.cmd .track { grid-column: 1 / -1; height: 4px; border-radius: 4px; background: #1d2330; overflow: hidden; }
+.cmd .track i { display: block; height: 100%; background: var(--accent); }
+
+.routers { display: flex; flex-wrap: wrap; gap: 10px; }
+.router { flex: 1 1 260px; display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line-soft); min-width: 0; }
+.router b { font-size: 13px; }
+.router span { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.empty { color: var(--faint); font-size: 13px; padding: 18px 4px; text-align: center; }
+.empty code { font-family: var(--mono); color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Jev Gateway</h1>
-  <span class="muted"><span id="conn" class="dot"></span><span id="connText">connecting…</span></span>
-  <span class="muted" id="uptime"></span>
-  <span class="spacer"></span>
-  <label class="muted">client <select id="client"><option value="">all</option><option>claude</option><option>codex</option></select></label>
-  <label class="muted">range <select id="range"><option value="900">15 min</option><option value="3600" selected>1 hour</option><option value="21600">6 hours</option><option value="86400">24 hours</option><option value="0">all</option></select></label>
-  <span id="routing" class="switch" role="switch" tabindex="0" title="Routing on: ask Jev and steer. Off: proxy only."><span class="track"></span><span id="routingText">routing</span></span>
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#161a23"/><path d="M9 19.5a7 7 0 0 0 14 0V8" stroke="#89a7ff" stroke-width="3.4" fill="none" stroke-linecap="round"/><circle cx="23" cy="8" r="2.4" fill="#67e8c3"/></svg>
+        <div>jev gateway<small id="uptime">connecting…</small></div>
+      </div>
+      <span class="live" id="live"><i></i><span id="liveText">connecting</span></span>
+      <button class="toggle" id="routing" role="switch" aria-checked="true" title="On: ask Jev and steer tool use. Off: plain proxy."><span class="knob"></span><span id="routingText">routing</span></button>
+    </div>
+    <div class="filters">
+      <div class="seg" id="client" role="group" aria-label="Client">
+        <button data-v="" aria-pressed="true">All clients</button><button data-v="claude" aria-pressed="false">Claude</button><button data-v="codex" aria-pressed="false">Codex</button>
+      </div>
+      <div class="seg" id="range" role="group" aria-label="Time range">
+        <button data-v="900" aria-pressed="false">15m</button><button data-v="3600" aria-pressed="true">1h</button><button data-v="21600" aria-pressed="false">6h</button><button data-v="86400" aria-pressed="false">24h</button><button data-v="0" aria-pressed="false">All</button>
+      </div>
+    </div>
+  </div>
 </header>
-<main>
-  <section class="cards" id="routers"></section>
-  <section class="tiles" id="tiles"></section>
-  <section class="grid cols2">
-    <div class="panel"><h2>Modes over time</h2><svg id="timeline" height="150" role="img" aria-label="Requests per mode over time"></svg>
-      <div class="legend"><span><i style="background:var(--hint)"></i>hint</span><span><i style="background:var(--forced)"></i>forced</span><span><i style="background:var(--none)"></i>none</span><span><i style="background:var(--pass)"></i>passthrough</span></div></div>
-    <div class="panel"><h2>Why not routed</h2><div class="bars" id="reasons"></div></div>
-  </section>
-  <section class="panel"><h2>Requests</h2><div class="scroll"><table>
-    <thead><tr><th>time</th><th>client</th><th>model</th><th>mode</th><th>tool</th><th>conf</th><th>reason</th><th>status</th><th>jev ms</th><th>total</th><th>tokens in/out</th></tr></thead>
-    <tbody id="requests"></tbody></table></div></section>
-  <section class="grid cols2">
-    <div class="panel"><h2>jev decisions</h2><div class="scroll"><table>
-      <thead><tr><th>time</th><th>kind</th><th>question</th><th>verdict</th><th>conf</th></tr></thead>
-      <tbody id="decisions"></tbody></table></div></div>
-    <div class="panel"><h2>jev today, by command</h2><table>
-      <thead><tr><th>command</th><th style="text-align:right">calls</th><th style="text-align:right">input tokens</th><th style="text-align:right">cost</th></tr></thead>
-      <tbody id="cmds"></tbody></table></div>
-  </section>
+
+<main class="wrap">
+  <div class="grid">
+    <section class="card span-5">
+      <h2>Steering <span class="sub" id="reqCount"></span></h2>
+      <div class="overview">
+        <div class="donut"><svg viewBox="0 0 120 120" id="donut" role="img" aria-label="Requests by mode"></svg><div class="center"><b id="steered">–</b><span>steered by Jev</span></div></div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </section>
+    <section class="card span-7">
+      <h2>At a glance</h2>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section class="card span-8">
+      <h2>Activity <span class="sub" id="chartNote"></span></h2>
+      <svg class="chart" id="chart" role="img" aria-label="Requests per mode over time"></svg>
+      <div class="keys" id="keys"></div>
+    </section>
+    <section class="card span-4">
+      <h2>Not steered, and why</h2>
+      <div class="reasons" id="reasons"></div>
+    </section>
+
+    <section class="card span-12">
+      <h2>Live requests <span class="sub">tap a row for details</span></h2>
+      <div class="thead"><span></span><span>time</span><span>client</span><span>mode</span><span>tool</span><span>confidence</span><span class="num">jev</span><span class="num">total</span><span class="num">tokens in/out</span></div>
+      <div class="feed" id="feed"></div>
+    </section>
+
+    <section class="card span-7">
+      <h2>jev decisions <span class="sub">from decisions.jsonl</span></h2>
+      <div class="decisions" id="decisions"></div>
+    </section>
+    <section class="card span-5">
+      <h2>jev today <span class="sub" id="cmdTotal"></span></h2>
+      <div class="cmds" id="cmds"></div>
+    </section>
+
+    <section class="card span-12">
+      <h2>Listeners</h2>
+      <div class="routers" id="routers"></div>
+    </section>
+  </div>
 </main>
+
 <script>
 "use strict";
-const S = { events: [], decisions: [], usage: [], routers: [], routing: true, usd: 0.042, started: null, fresh: new Set() };
+const S = { events: [], decisions: [], usage: [], routers: [], routing: true, usd: 0.042, started: null, fresh: new Set(), open: new Set(), client: "", range: 3600 };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "k" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(Math.round(n));
 const usd = (n) => "$" + (n < 0.01 ? n.toFixed(4) : n.toFixed(2));
-const pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "–";
+const pctN = (a, b) => b ? Math.round(100 * a / b) : 0;
 const hms = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const hm = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const jevTime = (ts) => new Date(ts); // jev writes local time without a zone
+const secs = (ms) => ms >= 10000 ? Math.round(ms / 1000) + " s" : (ms / 1000).toFixed(1) + " s";
+
+const MODES = [
+  ["hint", "var(--hint)", "reminder added to the turn"],
+  ["forced", "var(--forced)", "tool_choice set to the tool"],
+  ["none", "var(--none)", "no tool needed"],
+  ["passthrough", "var(--pass)", "sent unchanged"],
+];
 
 function filtered() {
-  const client = $("client").value, range = +$("range").value, since = range ? Date.now() - range * 1000 : 0;
-  return S.events.filter((e) => (!client || e.client === client) && new Date(e.time).getTime() >= since);
+  const since = S.range ? Date.now() - S.range * 1000 : 0;
+  return S.events.filter((e) => (!S.client || e.client === S.client) && new Date(e.time).getTime() >= since);
 }
 
 function render() {
   const ev = filtered();
-  renderRouters(); renderTiles(ev); renderTimeline(ev); renderReasons(ev); renderRequests(ev); renderJev();
+  renderRouting(); renderSteering(ev); renderKpis(ev); renderChart(ev); renderReasons(ev); renderFeed(ev); renderJev(); renderRouters();
   S.fresh.clear();
 }
 
-function renderRouters() {
-  $("routers").innerHTML = S.routers.map((r) => `<div class="card"><b>${esc(r.client)}</b> <span class="muted">:${r.port} → ${esc(r.route)}</span>
-    <div class="mono">${esc(r.upstream)}</div></div>`).join("");
+function renderRouting() {
   const sw = $("routing");
   sw.classList.toggle("on", S.routing);
-  sw.setAttribute("aria-checked", S.routing);
-  $("routingText").textContent = S.routing ? "routing on" : "routing off (proxy only)";
+  sw.setAttribute("aria-checked", String(S.routing));
+  $("routingText").textContent = S.routing ? "Routing on" : "Routing off";
+}
+
+function renderSteering(ev) {
+  const counts = Object.fromEntries(MODES.map(([m]) => [m, 0]));
+  for (const e of ev) counts[e.mode] = (counts[e.mode] || 0) + 1;
+  const total = ev.length, steered = total - counts.passthrough;
+  $("steered").textContent = total ? pctN(steered, total) + "%" : "–";
+  $("reqCount").textContent = `${fmt(total)} request${total === 1 ? "" : "s"}`;
+  const r = 50, c = 2 * Math.PI * r, gap = total > 1 ? 1.5 : 0;
+  let off = 0, arcs = `<circle cx="60" cy="60" r="${r}" fill="none" stroke="#1b2130" stroke-width="12"/>`;
+  for (const [m, color] of MODES) {
+    const n = counts[m]; if (!n) continue;
+    const len = Math.max(0, c * n / total - gap);
+    arcs += `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="butt" stroke-dasharray="${len.toFixed(2)} ${c.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"><title>${m}: ${n}</title></circle>`;
+    off += c * n / total;
+  }
+  $("donut").innerHTML = arcs;
+  $("legend").innerHTML = MODES.map(([m, color, what]) => `<div class="row"><i class="sw" style="background:${color}"></i><span>${m}<span class="what">${what}</span></span><span class="n">${fmt(counts[m])}</span><span class="p">${total ? pctN(counts[m], total) + "%" : ""}</span></div>`).join("");
 }
 
 function p95(xs) { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(s.length * 0.95))]; }
 
-function renderTiles(ev) {
-  const routed = ev.filter((e) => e.mode !== "passthrough").length;
+function renderKpis(ev) {
   const asked = ev.filter((e) => e.jev);
   const failed = asked.filter((e) => e.jev.error || e.reason === "jev_unexpected_answer").length;
   const lat = asked.map((e) => e.jev.latencyMs || 0);
+  const avg = lat.length ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) : 0;
   const jevIn = asked.reduce((a, e) => a + (e.jev.inputTokens || 0), 0);
   const llmIn = ev.reduce((a, e) => a + (e.usage?.input || 0), 0), llmOut = ev.reduce((a, e) => a + (e.usage?.output || 0), 0);
   const cached = ev.reduce((a, e) => a + (e.usage?.cached || 0), 0);
   const today = new Date().toDateString();
-  const cliIn = S.usage.filter((u) => jevTime(u.ts).toDateString() === today).reduce((a, u) => a + (u.input_tokens || 0), 0);
-  const tiles = [
-    ["requests", fmt(ev.length), `${new Set(ev.map((e) => e.model)).size} models`],
-    ["steered by Jev", pct(routed, ev.length), `${routed} hint / forced / none`],
-    ["Jev calls", fmt(asked.length), failed ? `${failed} failed` : "no failures"],
-    ["Jev latency", lat.length ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) + " ms" : "–", lat.length ? `p95 ${p95(lat)} ms` : ""],
-    ["LLM tokens", fmt(llmIn + llmOut), `${pct(cached, llmIn)} of input cached`],
-    ["Jev tokens (gateway)", fmt(jevIn), usd(jevIn * S.usd / 1e6)],
-    ["jev today", fmt(cliIn), usd(cliIn * S.usd / 1e6)],
+  const cli = S.usage.filter((u) => jevTime(u.ts).toDateString() === today);
+  const cliIn = cli.reduce((a, u) => a + (u.input_tokens || 0), 0);
+  const models = new Set(ev.map((e) => e.model).filter(Boolean)).size;
+  const kpis = [
+    ["Requests", fmt(ev.length), `${models} model${models === 1 ? "" : "s"}`],
+    ["Jev calls", fmt(asked.length), failed ? `${failed} failed` : "no failures", failed ? "bad" : ""],
+    ["Jev latency", lat.length ? avg + " ms" : "–", lat.length ? `p95 ${p95(lat)} ms` : "no calls"],
+    ["LLM tokens", fmt(llmIn + llmOut), `${pctN(cached, llmIn)}% input cached`, "", llmIn ? pctN(cached, llmIn) : null],
+    ["Jev cost, gateway", usd(jevIn * S.usd / 1e6), `${fmt(jevIn)} tokens`],
+    ["Jev cost, CLI today", usd(cliIn * S.usd / 1e6), `${cli.length} call${cli.length === 1 ? "" : "s"}`],
   ];
-  $("tiles").innerHTML = tiles.map(([l, v, s]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  $("kpis").innerHTML = kpis.map(([l, v, s, cls, meter]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s ${cls || ""}">${esc(s)}</div>${meter != null ? `<div class="meter"><i style="width:${meter}%"></i></div>` : ""}</div>`).join("");
 }
 
-const MODES = [["passthrough", "var(--pass)"], ["none", "var(--none)"], ["forced", "var(--forced)"], ["hint", "var(--hint)"]];
-function renderTimeline(ev) {
-  const svg = $("timeline"), W = svg.clientWidth || 600, H = 150, pad = 18;
-  if (!ev.length) { svg.innerHTML = `<text x="0" y="20" fill="#8b97a5" font-size="12">no requests in range</text>`; return; }
-  const range = +$("range").value, now = Date.now();
-  const t0 = range ? now - range * 1000 : new Date(ev[0].time).getTime(), span = Math.max(60000, now - t0);
-  const n = Math.max(10, Math.min(60, Math.floor(W / 14))), bw = W / n;
+function renderChart(ev) {
+  const svg = $("chart"), W = Math.max(280, svg.clientWidth || 600), H = 200, padB = 20, padT = 10;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  $("keys").innerHTML = MODES.map(([m, color]) => `<span><i style="background:${color}"></i>${m}</span>`).join("");
+  if (!ev.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">no requests in this range</text>`; $("chartNote").textContent = ""; return; }
+  const now = Date.now(), t0 = S.range ? now - S.range * 1000 : new Date(ev[0].time).getTime(), span = Math.max(60000, now - t0);
+  const n = Math.max(12, Math.min(72, Math.floor(W / 12)));
   const buckets = Array.from({ length: n }, () => ({}));
   for (const e of ev) {
     const i = Math.min(n - 1, Math.max(0, Math.floor((new Date(e.time).getTime() - t0) / span * n)));
     buckets[i][e.mode] = (buckets[i][e.mode] || 0) + 1;
   }
   const top = Math.max(1, ...buckets.map((b) => Object.values(b).reduce((a, c) => a + c, 0)));
+  const x = (i) => (i + 0.5) * W / n, y = (v) => H - padB - (H - padB - padT) * v / top;
   let out = "";
-  buckets.forEach((b, i) => {
-    let y = H - pad;
-    for (const [m, color] of MODES) {
-      const c = b[m] || 0; if (!c) continue;
-      const h = (H - pad - 4) * c / top; y -= h;
-      out += `<rect x="${(i * bw + 1).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" rx="1.5"><title>${m}: ${c}</title></rect>`;
-    }
-  });
-  out += `<text x="0" y="${H - 3}" fill="#8b97a5" font-size="11">${hms(new Date(t0))}</text><text x="${W}" y="${H - 3}" fill="#8b97a5" font-size="11" text-anchor="end">now</text><text x="${W}" y="11" fill="#8b97a5" font-size="11" text-anchor="end">max ${top}/bar</text>`;
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  for (const f of [0.5, 1]) out += `<line class="grid-line" x1="0" x2="${W}" y1="${y(top * f).toFixed(1)}" y2="${y(top * f).toFixed(1)}"/>`;
+  // Stack from the bottom in reverse legend order so passthrough sits underneath.
+  const order = [...MODES].reverse();
+  const base = new Array(n).fill(0);
+  for (const [m, color] of order) {
+    const next = base.map((b, i) => b + (buckets[i][m] || 0));
+    if (next.every((v, i) => v === base[i])) continue;
+    const upper = next.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    const lower = base.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).reverse();
+    out += `<polygon points="${upper.concat(lower).join(" ")}" fill="${color}" fill-opacity=".55"/><polyline points="${upper.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+    next.forEach((v, i) => { base[i] = v; });
+  }
+  const ticks = W < 480 ? 3 : 5;
+  for (let k = 0; k < ticks; k++) {
+    const tx = k / (ticks - 1) * W, anchor = k === 0 ? "start" : k === ticks - 1 ? "end" : "middle";
+    out += `<text x="${tx.toFixed(1)}" y="${H - 4}" text-anchor="${anchor}">${k === ticks - 1 ? "now" : hm(new Date(t0 + span * k / (ticks - 1)))}</text>`;
+  }
+  out += `<text x="${W}" y="${padT + 2}" text-anchor="end" dominant-baseline="hanging">${top}</text>`;
   svg.innerHTML = out;
+  $("chartNote").textContent = `${n} bars · ${Math.max(1, Math.round(span / n / 60000))} min each`;
 }
 
 function renderReasons(ev) {
@@ -178,28 +357,50 @@ function renderReasons(ev) {
   for (const e of ev) if (e.mode === "passthrough") counts[e.reason || "unknown"] = (counts[e.reason || "unknown"] || 0) + 1;
   const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const top = rows[0]?.[1] || 1;
-  $("reasons").innerHTML = rows.length ? rows.map(([r, c]) => `<div><span>${esc(r)}</span><span class="bar"><span style="width:${100 * c / top}%"></span></span><span class="n">${c}</span></div>`).join("")
-    : `<div class="empty">every request in range was steered</div>`;
+  $("reasons").innerHTML = rows.length ? rows.map(([r, c]) => `<div class="reason"><code>${esc(r)}</code><span class="n">${c}</span><div class="track"><i style="width:${(100 * c / top).toFixed(1)}%"></i></div></div>`).join("")
+    : `<div class="empty">${ev.length ? "every request in range was steered" : "nothing yet"}</div>`;
 }
 
-function renderRequests(ev) {
-  const rows = ev.slice(-150).reverse();
-  $("requests").innerHTML = rows.length ? rows.map((e) => `<tr class="${S.fresh.has(e.id) ? "new" : ""}">
-    <td class="t">${hms(new Date(e.time))}</td><td>${esc(e.client)}</td><td class="muted">${esc(e.model)}</td>
-    <td><span class="chip ${esc(e.mode)}">${esc(e.mode)}</span></td><td>${esc(e.tool || (e.jev?.choice === "no_tool_needed" ? "–" : ""))}</td>
-    <td class="num">${e.confidence ? e.confidence.toFixed(2) : ""}</td><td class="muted">${esc(e.reason)}${e.jev?.error ? ` <span title="${esc(e.jev.error)}">⚠</span>` : ""}</td>
-    <td class="num">${e.status}</td><td class="num">${e.jev ? e.jev.latencyMs : ""}</td><td class="num">${(e.durationMs / 1000).toFixed(1)} s</td>
-    <td class="num">${e.usage ? fmt(e.usage.input) + " / " + fmt(e.usage.output) : ""}</td></tr>`).join("")
-    : `<tr><td colspan="11" class="empty">no requests yet: start an agent with jev --claude or jev --codex</td></tr>`;
+function reqDetail(e) {
+  const j = e.jev || {}, u = e.usage || {};
+  const probs = j.topProbabilities ? Object.entries(j.topProbabilities).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => `<span>${esc(k)} ${v.toFixed(2)}</span>`).join("") : "";
+  const item = (l, v) => v === undefined || v === "" || v === null ? "" : `<div>${l} <b>${esc(v)}</b></div>`;
+  return item("model", e.model) + item("path", e.path) + item("status", e.status) + item("tools offered", e.tools) + item("reason", e.reason)
+    + item("jev model", j.model) + item("jev tokens", j.inputTokens) + (j.needsTool ? item("needs a tool", j.needsTool.toFixed(2)) : "")
+    + (e.usage ? item("cached input", fmt(u.cached || 0)) + item("cache write", fmt(u.cacheWrite || 0)) + (u.reasoning ? item("reasoning", fmt(u.reasoning)) : "") : "")
+    + (j.shortlist?.length ? `<div class="wide">shortlist <b>${esc(j.shortlist.join(", "))}</b></div>` : "")
+    + (probs ? `<div class="wide">top probabilities<div class="probs">${probs}</div></div>` : "")
+    + (j.error ? `<div class="wide warn">jev error: ${esc(j.error)}</div>` : "");
 }
+
+function renderFeed(ev) {
+  const rows = ev.slice(-150).reverse();
+  const color = Object.fromEntries(MODES.map(([m, c]) => [m, c]));
+  $("feed").innerHTML = rows.length ? rows.map((e) => {
+    const tool = e.tool ? esc(e.tool) : e.jev?.choice === "no_tool_needed" ? `<span class="dim">no tool needed</span>` : `<span class="dim">${esc(e.reason || "–")}</span>`;
+    const conf = e.confidence ? `<div class="conf"><div class="meter"><i style="width:${Math.round(e.confidence * 100)}%"></i></div><span>${e.confidence.toFixed(2)}</span></div>` : `<span class="num" style="text-align:left">–</span>`;
+    return `<div class="req${S.fresh.has(e.id) ? " new" : ""}${S.open.has(e.id) ? " open" : ""}" data-id="${e.id}" tabindex="0" role="button" aria-expanded="${S.open.has(e.id)}">
+      <span class="stripe" style="background:${color[e.mode] || "var(--pass)"}"></span>
+      <span class="t c-time">${hms(new Date(e.time))}</span><span class="client c-client">${esc(e.client)}</span>
+      <span class="c-mode"><span class="pill ${esc(e.mode)}">${esc(e.mode)}</span></span>
+      <span class="tool c-tool">${tool}${e.jev?.error ? ` <span class="warn" title="${esc(e.jev.error)}">⚠</span>` : ""}</span>
+      <span class="c-conf">${conf}</span>
+      <span class="num c-lat" title="Jev latency">${e.jev ? e.jev.latencyMs + " ms" : "–"}</span>
+      <span class="num c-dur" title="total duration">${secs(e.durationMs)}</span>
+      <span class="num c-tok">${e.usage ? fmt(e.usage.input) + " / " + fmt(e.usage.output) : "–"}</span>
+      <div class="detail">${S.open.has(e.id) ? reqDetail(e) : ""}</div></div>`;
+  }).join("") : `<div class="empty">no requests yet. Start an agent with <code>jev --claude</code> or <code>jev --codex</code></div>`;
+}
+
+function verdictClass(v) { return v === "ACT" || v === "YES" ? "v-good" : v === "CONFIRM" || v === "UNSURE" ? "v-mid" : "v-bad"; }
 
 function renderJev() {
   const ds = S.decisions.slice(-100).reverse();
   $("decisions").innerHTML = ds.length ? ds.map((d) => {
     const a = d.answer || {}, conf = a.confidence ?? a.p_yes ?? a.score;
-    return `<tr><td class="t">${esc(hms(jevTime(d.ts)))}</td><td>${esc(d.kind)}</td><td class="q" title="${esc(d.cwd)}">${esc(d.question)}</td>
-      <td><span class="chip ${esc(d.verdict)}">${esc(d.verdict)}</span>${a.choice ? " " + esc(a.choice) : ""}</td><td class="num">${conf != null ? (+conf).toFixed(2) : ""}</td></tr>`;
-  }).join("") : `<tr><td colspan="5" class="empty">no decisions logged</td></tr>`;
+    const dir = String(d.cwd || "").split("/").filter(Boolean).pop() || "";
+    return `<div class="dec"><span class="verdict ${verdictClass(d.verdict)}">${esc(d.verdict)}</span><span class="meta">${esc(d.kind)}${a.choice ? " → " + esc(a.choice) : ""}${conf != null ? " · " + (+conf).toFixed(2) : ""}</span><span class="meta" title="${esc(d.cwd)}">${esc(hms(jevTime(d.ts)))}${dir ? " · " + esc(dir) : ""}</span><div class="q">${esc(d.question)}</div></div>`;
+  }).join("") : `<div class="empty">no decisions logged</div>`;
   const today = new Date().toDateString(), by = {};
   for (const u of S.usage) {
     if (jevTime(u.ts).toDateString() !== today) continue;
@@ -207,8 +408,14 @@ function renderJev() {
     r.calls++; r.tokens += u.input_tokens || 0;
   }
   const rows = Object.entries(by).sort((a, b) => b[1].tokens - a[1].tokens);
-  $("cmds").innerHTML = rows.length ? rows.map(([c, r]) => `<tr><td>${esc(c)}</td><td class="num">${r.calls}</td><td class="num">${fmt(r.tokens)}</td><td class="num">${usd(r.tokens * S.usd / 1e6)}</td></tr>`).join("")
-    : `<tr><td colspan="4" class="empty">no jev calls today</td></tr>`;
+  const top = rows[0]?.[1].tokens || 1, total = rows.reduce((a, [, r]) => a + r.tokens, 0);
+  $("cmdTotal").textContent = rows.length ? usd(total * S.usd / 1e6) : "";
+  $("cmds").innerHTML = rows.length ? rows.map(([c, r]) => `<div class="cmd"><code>${esc(c)}</code><span class="num">${r.calls} call${r.calls === 1 ? "" : "s"} · ${fmt(r.tokens)} tok</span><span class="num">${usd(r.tokens * S.usd / 1e6)}</span><div class="track"><i style="width:${(100 * r.tokens / top).toFixed(1)}%"></i></div></div>`).join("")
+    : `<div class="empty">no jev calls today</div>`;
+}
+
+function renderRouters() {
+  $("routers").innerHTML = S.routers.length ? S.routers.map((r) => `<div class="router"><b>${esc(r.client)} <span>:${r.port} · ${esc(r.route)}</span></b><span>→ ${esc(r.upstream)}</span></div>`).join("") : `<div class="empty">no listeners</div>`;
 }
 
 function uptime() {
@@ -222,9 +429,9 @@ function soon() { if (!pending) { pending = true; requestAnimationFrame(() => { 
 
 function connect() {
   const es = new EventSource("/dashboard/stream");
-  const status = (on, text) => { $("conn").classList.toggle("on", on); $("connText").textContent = text; };
+  const status = (on, text) => { $("live").classList.toggle("on", on); $("liveText").textContent = text; };
   es.onopen = () => status(true, "live");
-  es.onerror = () => status(false, "reconnecting…");
+  es.onerror = () => status(false, "reconnecting");
   es.addEventListener("snapshot", (m) => {
     const d = JSON.parse(m.data);
     Object.assign(S, { events: d.events || [], decisions: d.decisions || [], usage: d.usage || [], routers: d.routers || [], routing: d.routing, usd: d.usdPerMillion, started: d.started });
@@ -233,23 +440,38 @@ function connect() {
   es.addEventListener("route", (m) => { const e = JSON.parse(m.data); S.events.push(e); S.fresh.add(e.id); if (S.events.length > 5000) S.events.splice(0, 1000); soon(); });
   es.addEventListener("decision", (m) => { S.decisions.push(JSON.parse(m.data)); if (S.decisions.length > 500) S.decisions.shift(); soon(); });
   es.addEventListener("usage", (m) => { S.usage.push(JSON.parse(m.data)); soon(); });
-  es.addEventListener("routing", (m) => { S.routing = JSON.parse(m.data).routing; renderRouters(); });
+  es.addEventListener("routing", (m) => { S.routing = JSON.parse(m.data).routing; renderRouting(); });
 }
 
 async function toggleRouting() {
   const sw = $("routing");
-  sw.style.opacity = .5;
+  sw.classList.add("busy");
   try {
     const r = await fetch("/dashboard/routing", { method: "POST", headers: { "Content-Type": "application/json", "X-Jev-Dashboard": "1" }, body: JSON.stringify({ enabled: !S.routing }) });
     if (r.ok) S.routing = (await r.json()).routing;
-  } finally { sw.style.opacity = 1; renderRouters(); }
+  } finally { sw.classList.remove("busy"); renderRouting(); }
+}
+
+function segmented(id, key, parse) {
+  $(id).addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    for (const x of $(id).querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
+    S[key] = parse(b.dataset.v); render();
+  });
+}
+
+function toggleRow(row) {
+  const id = +row.dataset.id;
+  if (S.open.has(id)) S.open.delete(id); else S.open.add(id);
+  render();
 }
 
 $("routing").addEventListener("click", toggleRouting);
-$("routing").addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleRouting(); } });
-$("client").addEventListener("change", render);
-$("range").addEventListener("change", render);
-window.addEventListener("resize", soon);
+segmented("client", "client", String);
+segmented("range", "range", Number);
+$("feed").addEventListener("click", (ev) => { const row = ev.target.closest(".req"); if (row) toggleRow(row); });
+$("feed").addEventListener("keydown", (ev) => { const row = ev.target.closest(".req"); if (row && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); toggleRow(row); } });
+new ResizeObserver(soon).observe($("chart"));
 setInterval(() => { uptime(); soon(); }, 30000);
 connect();
 </script>
