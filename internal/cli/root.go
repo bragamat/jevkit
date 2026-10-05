@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const rootLong = `jev puts Jev, TypeSafe's System One model, in a coding agent's toolbox.
+const rootLong = `jev-cli puts Jev, TypeSafe's System One model, in a coding agent's toolbox.
 
 Reading: instead of pasting a file into the agent's context, ask Jev where the
 answer is and read only those lines.
@@ -24,7 +24,7 @@ Requires TYPESAFE_API_KEY. Unofficial; not affiliated with TypeSafe AI.`
 // NewRoot builds the command tree.
 func NewRoot(a *App, version string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "jev",
+		Use:           "jev-cli",
 		Short:         "Jev recipes for coding agents: read less, decide with calibrated confidence",
 		Long:          rootLong,
 		Version:       version,

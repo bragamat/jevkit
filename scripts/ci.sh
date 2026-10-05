@@ -17,5 +17,5 @@ test -z "$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formattin
 go vet ./...
 if command -v gcc >/dev/null; then go test -race -count=1 ./...; else go test -count=1 ./...; fi
 mkdir -p dist
-CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION:-dev}" -o dist/jev ./cmd/jev
-ls -la dist/jev
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION:-dev}" -o dist/jev-cli ./cmd/jev-cli
+ls -la dist/jev-cli

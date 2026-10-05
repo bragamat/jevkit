@@ -1,9 +1,9 @@
 # jevkit
 
-`jev` is a command-line toolkit that puts **Jev**, TypeSafe's System One model, in a coding agent's toolbox.
+`jev-cli` is a command-line toolkit that puts **Jev**, TypeSafe's System One model, in a coding agent's toolbox.
 
 Coding agents (Claude Code, Codex, Cursor, …) spend most of their budget re-reading context. Every file an
-agent pastes into the conversation is paid for again on every following turn. `jev` gives the agent two
+agent pastes into the conversation is paid for again on every following turn. `jev-cli` gives the agent two
 cheaper moves:
 
 - **Read less.** Ask Jev *where* the answer is and read only those lines, instead of reading the file.
@@ -20,14 +20,14 @@ tokens, so a lookup costs a small fraction of what pasting the file would.
 ## Install
 
 ```sh
-go install github.com/bragamat/jevkit/cmd/jev@latest
+go install github.com/bragamat/jevkit/cmd/jev-cli@latest
 ```
 
 Or download a binary from the [releases page](https://github.com/bragamat/jevkit/releases).
 
 ```sh
 export TYPESAFE_API_KEY=...
-jev models
+jev-cli models
 ```
 
 ## Reading
@@ -35,7 +35,7 @@ jev models
 ### `find FILE QUESTION` — rank lines by meaning
 
 ```console
-$ jev find docs/deploy.md "where does the deploy key come from?" --top 3
+$ jev-cli find docs/deploy.md "where does the deploy key come from?" --top 3
 exists=0.91 (answers)  docs/deploy.md
   0.84  L212: The deploy key is read from Vault at boot (secret/deploy/key).
   0.05  L48: Keys rotate every 90 days.
@@ -49,7 +49,7 @@ Long files are split into windows of 250 lines that run in parallel.
 ### `check CLAIM FILE` — does the source back the claim?
 
 ```console
-$ jev check "The cache TTL is one hour" config/README.md
+$ jev-cli check "The cache TTL is one hour" config/README.md
 contradicts (conf 0.88, exists 0.93)
   L31: Responses are cached for 10 minutes.
 ```
@@ -76,7 +76,7 @@ the context the choice depends on.
 ```
 
 ```console
-$ jev triage tickets.jsonl spec.json --label id --sort urgent
+$ jev-cli triage tickets.jsonl spec.json --label id --sort urgent
 T-104 | urgent=0.97 | area=infra | area_conf=0.91 | effort=1.2 | effort_conf=0.74
 T-101 | urgent=0.12 | area=docs | area_conf=0.88 | effort=0.1 | effort_conf=0.93
 ```
@@ -91,7 +91,7 @@ context goes once per batch of `--batch` items (default 20): the state becomes
 The agent states the evidence, asks, and follows the verdict:
 
 ```console
-$ jev decide "Is this failure caused by the change under review?" yes no=pre-existing \
+$ jev-cli decide "Is this failure caused by the change under review?" yes no=pre-existing \
     --ctx failing-test.log --text "The test also fails on main." --risk high
 CONFIRM: no  (conf 0.81, risk high, jev-1.13)
   no=0.81  yes=0.19
@@ -104,7 +104,7 @@ CONFIRM: no  (conf 0.81, risk high, jev-1.13)
 | `score QUESTION LEVEL...` | score, levels lowest first | `ACT`, `CONFIRM`, `REPHRASE` |
 
 Evidence comes from `--ctx FILE` (repeatable; `-` reads stdin) and `--text`. It is capped at 60,000
-characters: filter first with `jev find` and send only what the decision needs.
+characters: filter first with `jev-cli find` and send only what the decision needs.
 
 `--risk` sets how costly a wrong call is. The bands follow TypeSafe's
 [confidence guidance](https://docs.typesafe.ai/confidence):
@@ -143,7 +143,7 @@ exponential backoff, honoring `Retry-After`.
 
 ## Files
 
-`jev usage [--today]` sums the local usage log: calls and input tokens per subcommand, with a cost
+`jev-cli usage [--today]` sums the local usage log: calls and input tokens per subcommand, with a cost
 estimate. Nothing leaves your machine except the API calls themselves.
 
 ## Using it from an agent
@@ -151,9 +151,9 @@ estimate. Nothing leaves your machine except the API calls themselves.
 Add a short rule to your agent's instructions, for example in `CLAUDE.md` or `AGENTS.md`:
 
 ```markdown
-- Before reading a large file to find something, run `jev find FILE "question"` and read only the lines it returns.
-- Before stating a fact about code or docs, run `jev check "claim" FILE`.
-- For a yes/no or multiple-choice judgment about your own work, run `jev decide` / `jev yesno` with the
+- Before reading a large file to find something, run `jev-cli find FILE "question"` and read only the lines it returns.
+- Before stating a fact about code or docs, run `jev-cli check "claim" FILE`.
+- For a yes/no or multiple-choice judgment about your own work, run `jev-cli decide` / `jev-cli yesno` with the
   evidence and follow the verdict: ACT → proceed, CONFIRM → gather more evidence, REPHRASE → rethink the question.
 ```
 
@@ -161,7 +161,7 @@ Add a short rule to your agent's instructions, for example in `CLAUDE.md` or `AG
 
 ```sh
 go test ./...
-go build -o jev ./cmd/jev
+go build -o jev-cli ./cmd/jev-cli
 ```
 
 `scripts/ci.sh` fetches a pinned Go toolchain when none is installed, then runs gofmt, vet, tests and the

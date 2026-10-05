@@ -63,7 +63,7 @@ func (a *App) state(e evidence) (any, error) {
 	}
 	text := strings.Join(parts, "\n\n")
 	if utf8.RuneCountInString(text) > maxContextChars {
-		return nil, inputErrorf("context too large: filter it first (jev find) and send only what the decision needs")
+		return nil, inputErrorf("context too large: filter it first (jev-cli find) and send only what the decision needs")
 	}
 	if text == "" {
 		text = "(no context beyond the question)"

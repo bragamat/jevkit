@@ -1,4 +1,4 @@
-// Package cli implements the jev command: Jev recipes that let coding agents
+// Package cli implements the jev-cli command: Jev recipes that let coding agents
 // read less and delegate small judgment calls.
 package cli
 

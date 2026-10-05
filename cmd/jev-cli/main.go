@@ -1,4 +1,4 @@
-// Command jev is a Jev toolkit for coding agents.
+// Command jev-cli is a Jev toolkit for coding agents.
 package main
 
 import (
@@ -23,7 +23,7 @@ func main() {
 	if err == nil {
 		return
 	}
-	name := "jev"
+	name := "jev-cli"
 	if cmd != nil && cmd != root {
 		name += " " + cmd.Name()
 	}
