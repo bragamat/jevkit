@@ -197,16 +197,10 @@ func TestPickTwoRounds(t *testing.T) {
 	if err := run(t, a, "pick", "Which one?", path, "--top", "1", "--json"); err != nil {
 		t.Fatal(err)
 	}
-	if len(fake.requests) != 4 {
-		t.Fatalf("requests = %d, want 3 groups + 1 final", len(fake.requests))
+	if len(fake.requests) != 2 || len(fake.requests[0].Questions) != 6 {
+		t.Fatalf("requests = %d, want 3 groups in both orders in one request + 1 final", len(fake.requests))
 	}
-	final := fake.requests[len(fake.requests)-1]
-	for _, r := range fake.requests {
-		if len(r.Questions["q"]["criteria"].(map[string]any)) == 9 {
-			final = r
-		}
-	}
-	if len(final.Questions["q"]["criteria"].(map[string]any)) != 9 {
+	if len(fake.requests[1].Questions["q0"]["criteria"].(map[string]any)) != 9 {
 		t.Fatal("final round should have 3 finalists from each of 3 groups")
 	}
 	if got := strings.TrimSpace(out.String()); got != `[{"option":"opt-555","p":0.97}]` {
@@ -352,6 +346,77 @@ func TestDecideVerdicts(t *testing.T) {
 	}
 }
 
+func TestDecideOrderDisagreementNeedsConfirm(t *testing.T) {
+	fake, srv := newFake(t, func(_ apiRequest, id string, q map[string]any) map[string]any {
+		pick := "a"
+		if id == "q:reversed" {
+			pick = "b"
+		}
+		return map[string]any{"type": "choice", "choice": pick, "confidence": 0.95,
+			"probabilities": map[string]float64{pick: 0.95}}
+	})
+	a, out := testApp(t, srv)
+	if err := run(t, a, "decide", "Which?", "a", "b"); err != nil {
+		t.Fatal(err)
+	}
+	if len(fake.requests) != 1 || len(fake.requests[0].Questions) != 2 {
+		t.Fatalf("requests = %+v", fake.requests)
+	}
+	if !strings.HasPrefix(out.String(), "CONFIRM: a  (conf 0.95") || !strings.Contains(out.String(), "option order") {
+		t.Fatalf("output: %s", out.String())
+	}
+}
+
+func TestScoreLevelIsMostLikely(t *testing.T) {
+	ans := typesafe.Answer{Score: 1.0, Probabilities: map[string]float64{"0": 0.5, "1": 0.0, "2": 0.5}}
+	if got := scoreLevel(ans, 3); got != 0 {
+		t.Fatalf("level %d, want the lower of two tied levels, not the mean", got)
+	}
+	if got := scoreLevel(typesafe.Answer{Score: 2.6}, 3); got != 2 {
+		t.Fatalf("fallback level %d", got)
+	}
+}
+
+func TestLimitsAreInputErrors(t *testing.T) {
+	_, srv := newFake(t, func(apiRequest, string, map[string]any) map[string]any { return nil })
+	a, _ := testApp(t, srv)
+	many := make([]string, 256)
+	for i := range many {
+		many[i] = fmt.Sprintf("o%d", i)
+	}
+	levels := strings.Fields("1 2 3 4 5 6 7 8 9 10 11")
+	for name, args := range map[string][]string{
+		"decide 256": append([]string{"decide", "Which?"}, many...),
+		"score 1":    {"score", "How?", "only"},
+		"score 11":   append([]string{"score", "How?"}, levels...),
+	} {
+		var ie inputError
+		if err := run(t, a, args...); !errors.As(err, &ie) {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+}
+
+func TestFindWindowsByCharacters(t *testing.T) {
+	var lines []numberedLine
+	for i := range 240 {
+		lines = append(lines, numberedLine{N: i + 1, Text: strings.Repeat("x", 600)})
+	}
+	w := splitWindows(lines)
+	if len(w) != 2 || len(w[0])+len(w[1]) != 240 {
+		t.Fatalf("windows %d", len(w))
+	}
+	for _, win := range w {
+		n := 0
+		for _, l := range win {
+			n += len(windowLine(l)) + 1
+		}
+		if n > windowChars {
+			t.Fatalf("window of %d chars", n)
+		}
+	}
+}
+
 func TestDecideLogsAndReadsStdin(t *testing.T) {
 	fake, srv := newFake(t, func(_ apiRequest, _ string, q map[string]any) map[string]any {
 		return map[string]any{"type": "choice", "choice": "b", "confidence": 0.9,
@@ -370,7 +435,7 @@ func TestDecideLogsAndReadsStdin(t *testing.T) {
 	if crit["a"] != nil || crit["b"] != "the second" {
 		t.Fatalf("criteria = %v", crit)
 	}
-	if got := strings.TrimSpace(out.String()); got != `{"choice":"b","confidence":0.9,"verdict":"ACT","probabilities":{"b":0.9,"a":0.1},"model":"jev-test"}` {
+	if got := strings.TrimSpace(out.String()); got != `{"choice":"b","confidence":0.9,"verdict":"ACT","order_consistent":true,"probabilities":{"b":0.9,"a":0.1},"model":"jev-test"}` {
 		t.Fatalf("json = %s", got)
 	}
 	log, _ := os.ReadFile(a.DecisionLog)

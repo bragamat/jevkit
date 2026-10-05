@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/bragamat/jevkit/internal/typesafe"
 )
@@ -19,10 +20,7 @@ type rankedLine struct {
 // says whether the document answers it at all. Documents longer than one
 // choice are split into windows that run in parallel.
 func (a *App) find(ctx context.Context, lines []numberedLine, question string) (float64, []rankedLine, error) {
-	var windows [][]numberedLine
-	for i := 0; i < len(lines); i += windowSize {
-		windows = append(windows, lines[i:min(i+windowSize, len(lines))])
-	}
+	windows := splitWindows(lines)
 	type result struct {
 		exists float64
 		lines  []rankedLine
@@ -34,11 +32,14 @@ func (a *App) find(ctx context.Context, lines []numberedLine, question string) (
 			if i > 0 {
 				state.WriteByte('\n')
 			}
-			fmt.Fprintf(&state, "L%d: %s", l.N, truncate(l.Text, 400))
+			state.WriteString(windowLine(l))
 			criteria.Set(fmt.Sprintf("L%d", l.N), nil)
 		}
+		where := fmt.Sprintf("Which line of the document contains the answer to: %q?", question)
+		// Asked in both orders and averaged: jev-1.13 leans toward the first option.
 		questions := typesafe.NewFields().
-			Set("where", typesafe.Choice(fmt.Sprintf("Which line of the document contains the answer to: %q?", question), criteria)).
+			Set("where", typesafe.Choice(where, criteria)).
+			Set("where:reversed", typesafe.Choice(where, reverseFields(criteria))).
 			Set("exists", typesafe.Noul(fmt.Sprintf("Does any line of the document address or answer: %q?", question),
 				"At least one line states or directly implies the answer",
 				"No line of the document addresses this"))
@@ -46,7 +47,7 @@ func (a *App) find(ctx context.Context, lines []numberedLine, question string) (
 		if err != nil {
 			return result{}, err
 		}
-		probs := r.Answers["where"].Probabilities
+		probs := averaged(r.Answers["where"].Probabilities, r.Answers["where:reversed"].Probabilities)
 		out := result{exists: r.Answers["exists"].Noul}
 		for _, l := range windows[w] {
 			out.lines = append(out.lines, rankedLine{l, probs[fmt.Sprintf("L%d", l.N)]})
@@ -68,6 +69,30 @@ func (a *App) find(ctx context.Context, lines []numberedLine, question string) (
 	}
 	slices.SortStableFunc(all, func(x, y rankedLine) int { return cmp.Compare(y.Score, x.Score) })
 	return exists, all, nil
+}
+
+// windowLine is how one line appears in a window's state.
+func windowLine(l numberedLine) string {
+	return fmt.Sprintf("L%d: %s", l.N, truncate(l.Text, 400))
+}
+
+// splitWindows cuts lines into windows of at most windowSize lines and
+// windowChars characters, so each window's state stays under the API limit.
+func splitWindows(lines []numberedLine) [][]numberedLine {
+	var windows [][]numberedLine
+	start, size := 0, 0
+	for i, l := range lines {
+		n := utf8.RuneCountInString(windowLine(l)) + 1
+		if i > start && (i-start >= windowSize || size+n > windowChars) {
+			windows = append(windows, lines[start:i])
+			start, size = i, 0
+		}
+		size += n
+	}
+	if start < len(lines) {
+		windows = append(windows, lines[start:])
+	}
+	return windows
 }
 
 func (a *App) runFind(ctx context.Context, path, question string, top int) error {

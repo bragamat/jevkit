@@ -148,7 +148,7 @@ func NewRoot(a *App, version string) *cobra.Command {
 	score := &cobra.Command{
 		Use:   "score QUESTION LEVEL...",
 		Short: "Place the evidence on a scale of levels, lowest first",
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runScore(cmd.Context(), args[0], args[1:], e)
 		},

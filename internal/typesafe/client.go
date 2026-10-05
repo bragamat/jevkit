@@ -17,11 +17,15 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 const (
 	DefaultBaseURL = "https://api.typesafe.ai"
-	DefaultModel   = "jev-latest"
+	// DefaultModel is pinned: jev-latest moves when a new model ships, and the
+	// confidence bands and gateway thresholds were tuned on this one.
+	DefaultModel = "jev-1.13.0"
 
 	APIKeyEnv       = "TYPESAFE_API_KEY" //nolint:gosec // the variable name, not a credential
 	BaseURLEnv      = "TYPESAFE_BASE_URL"
@@ -31,12 +35,38 @@ const (
 	USDPerMillionInputTokens = 0.042
 )
 
+// API limits, from docs.typesafe.ai.
+const (
+	// MaxRequestTokens bounds a whole request: state plus every question.
+	MaxRequestTokens = 64000
+	// MaxStateQuestionTokens bounds the state plus the longest single question.
+	MaxStateQuestionTokens = 32000
+	MaxChoiceOptions       = 255
+	MinScoreLevels         = 2
+	MaxScoreLevels         = 10
+	// CharsPerToken is a conservative estimate used to budget text before sending it.
+	CharsPerToken = 3
+)
+
+// ApproxTokens estimates the tokens v costs once encoded, rounding up.
+func ApproxTokens(v any) int {
+	b, err := marshal(v)
+	if err != nil {
+		return 0
+	}
+	return (utf8.RuneCount(b) + CharsPerToken - 1) / CharsPerToken
+}
+
 // maxRetryAfter caps how long a Retry-After header can make the client wait. Longer
 // values fall back to the normal backoff, so a CLI never hangs for minutes.
 const maxRetryAfter = 60 * time.Second
 
 // ErrNoAPIKey is returned by NewFromEnv when TYPESAFE_API_KEY is empty.
 var ErrNoAPIKey = errors.New(APIKeyEnv + " is not set")
+
+// ErrBadAPIKey is returned by NewFromEnv when TYPESAFE_API_KEY holds characters
+// no key has, usually a paste that caught a space, a newline or a quote.
+var ErrBadAPIKey = errors.New(APIKeyEnv + " has spaces, quotes or non-ASCII characters; check how it was set")
 
 // Question is one typed question: a noul (probability of true), a choice
 // (one of N labels) or a score (position on an ordered scale).
@@ -147,7 +177,7 @@ func New(apiKey string, timeout time.Duration) *Client {
 		DefaultModel: DefaultModel,
 		UserAgent:    "jevkit",
 		HTTP:         &http.Client{Timeout: timeout},
-		MaxRetries:   3,
+		MaxRetries:   2,
 		sleep:        sleepContext,
 	}
 }
@@ -158,6 +188,9 @@ func NewFromEnv(timeout time.Duration) (*Client, error) {
 	if key == "" {
 		return nil, ErrNoAPIKey
 	}
+	if !validKey(key) {
+		return nil, ErrBadAPIKey
+	}
 	c := New(key, timeout)
 	if v := os.Getenv(BaseURLEnv); v != "" {
 		c.BaseURL = v
@@ -166,6 +199,16 @@ func NewFromEnv(timeout time.Duration) (*Client, error) {
 		c.DefaultModel = v
 	}
 	return c, nil
+}
+
+// validKey accepts printable ASCII with no spaces or quotes.
+func validKey(key string) bool {
+	for _, r := range key {
+		if r > unicode.MaxASCII || !unicode.IsPrint(r) || unicode.IsSpace(r) || r == '"' || r == '\'' {
+			return false
+		}
+	}
+	return true
 }
 
 // SystemOne asks the questions about the state. An empty Model uses the
@@ -201,7 +244,7 @@ func (c *Client) Models(ctx context.Context) ([]Model, error) {
 
 func (c *Client) call(ctx context.Context, method, path string, body []byte, out any) error {
 	for attempt := 0; ; attempt++ {
-		err := c.once(ctx, method, path, body, attempt, out)
+		err := c.once(ctx, method, path, body, out)
 		if err == nil || attempt >= c.MaxRetries || !retryable(ctx, err) {
 			return err
 		}
@@ -216,7 +259,7 @@ func (c *Client) call(ctx context.Context, method, path string, body []byte, out
 	}
 }
 
-func (c *Client) once(ctx context.Context, method, path string, body []byte, attempt int, out any) error {
+func (c *Client) once(ctx context.Context, method, path string, body []byte, out any) error {
 	var rd io.Reader
 	if body != nil {
 		rd = bytes.NewReader(body)
@@ -231,9 +274,6 @@ func (c *Client) once(ctx context.Context, method, path string, body []byte, att
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if attempt > 0 {
-		req.Header.Set("X-TypeSafe-Retry-Count", strconv.Itoa(attempt))
-	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return transportError{err}
@@ -244,10 +284,7 @@ func (c *Client) once(ctx context.Context, method, path string, body []byte, att
 		return transportError{fmt.Errorf("reading response from %s: %w", path, err)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		text := strings.TrimSpace(string(data))
-		if r := []rune(text); len(r) > 200 {
-			text = string(r[:200]) + "…"
-		}
+		text := errorBody(data)
 		return &APIError{
 			Status:     resp.StatusCode,
 			Body:       text,
@@ -259,6 +296,34 @@ func (c *Client) once(ctx context.Context, method, path string, body []byte, att
 		return decodeError{fmt.Errorf("unexpected response from %s: %w", path, err)}
 	}
 	return nil
+}
+
+// errorBody renders an error response. A 422's detail list is kept whole, as
+// "loc: msg" lines, because loc says which question or field was rejected;
+// anything else is cut to 300 characters.
+func errorBody(data []byte) string {
+	var v struct {
+		Detail []struct {
+			Loc []any  `json:"loc"`
+			Msg string `json:"msg"`
+		} `json:"detail"`
+	}
+	if json.Unmarshal(data, &v) == nil && len(v.Detail) > 0 {
+		parts := make([]string, 0, len(v.Detail))
+		for _, d := range v.Detail {
+			loc := make([]string, 0, len(d.Loc))
+			for _, l := range d.Loc {
+				loc = append(loc, fmt.Sprint(l))
+			}
+			parts = append(parts, strings.Join(loc, ".")+": "+d.Msg)
+		}
+		return strings.Join(parts, "; ")
+	}
+	text := strings.TrimSpace(string(data))
+	if r := []rune(text); len(r) > 300 {
+		text = string(r[:300]) + "…"
+	}
+	return text
 }
 
 func retryable(ctx context.Context, err error) bool {

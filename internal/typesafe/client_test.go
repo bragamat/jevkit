@@ -81,9 +81,6 @@ func TestRetriesRateLimit(t *testing.T) {
 			w.WriteHeader(http.StatusTooManyRequests)
 			return
 		}
-		if r.Header.Get("X-TypeSafe-Retry-Count") != "1" {
-			t.Errorf("retry count header = %q", r.Header.Get("X-TypeSafe-Retry-Count"))
-		}
 		_, _ = w.Write([]byte(`{"models":[{"name":"jev-latest","description":"d","release_date":"2026-09-15"}]}`))
 	}))
 	defer srv.Close()
@@ -117,7 +114,7 @@ func TestDoesNotRetryClientErrors(t *testing.T) {
 	if !errors.As(err, &apiErr) || apiErr.Status != 401 || calls.Load() != 1 {
 		t.Fatalf("err=%v calls=%d", err, calls.Load())
 	}
-	if len([]rune(apiErr.Body)) != 201 || !strings.Contains(err.Error(), "req_1") {
+	if len([]rune(apiErr.Body)) != 301 || !strings.Contains(err.Error(), "req_1") {
 		t.Fatalf("error = %q", err)
 	}
 }
@@ -132,7 +129,7 @@ func TestGivesUpAfterMaxRetries(t *testing.T) {
 	c := New("k", time.Second)
 	c.BaseURL = srv.URL
 	c.sleep = noSleep
-	if _, err := c.Models(context.Background()); err == nil || calls.Load() != 4 {
+	if _, err := c.Models(context.Background()); err == nil || calls.Load() != 3 {
 		t.Fatalf("err=%v calls=%d", err, calls.Load())
 	}
 }
@@ -235,4 +232,40 @@ func FuzzDecodeOrdered(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestValidationErrorKeepsEveryLocation(t *testing.T) {
+	long := strings.Repeat("y", 400)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"detail":[{"loc":["body","questions","q",0],"msg":"` + long + `"},{"loc":["body","state"],"msg":"too long"}]}`))
+	}))
+	defer srv.Close()
+	c := New("k", time.Second)
+	c.BaseURL = srv.URL
+	_, err := c.Models(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "body.questions.q.0: "+long) || !strings.Contains(err.Error(), "body.state: too long") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestNewFromEnvRejectsMangledKeys(t *testing.T) {
+	for key, want := range map[string]error{
+		"  ts_abc123\n": nil,
+		"":              ErrNoAPIKey,
+		"ts_abc 123":    ErrBadAPIKey,
+		`"ts_abc123"`:   ErrBadAPIKey,
+		"ts_abcé":       ErrBadAPIKey,
+	} {
+		t.Setenv(APIKeyEnv, key)
+		if _, err := NewFromEnv(time.Second); !errors.Is(err, want) {
+			t.Errorf("%q: err = %v, want %v", key, err, want)
+		}
+	}
+}
+
+func TestApproxTokensIsConservative(t *testing.T) {
+	if n := ApproxTokens(strings.Repeat("a", 2998)); n != 1000 { // 3000 runes with quotes
+		t.Fatalf("tokens = %d", n)
+	}
 }

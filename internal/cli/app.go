@@ -21,10 +21,14 @@ import (
 const (
 	// windowSize stays under the 255 options a choice accepts.
 	windowSize = 250
+	// windowChars keeps a find window's state plus its question under the API's
+	// 32k tokens at typesafe.CharsPerToken.
+	windowChars = 80000
 	// concurrency caps parallel requests per command.
 	concurrency = 16
-	// requestTimeout applies to each HTTP attempt.
-	requestTimeout = 120 * time.Second
+	// requestTimeout applies to each HTTP attempt. The SDK uses 10 s; a full
+	// 64k-token request needs more headroom than that.
+	requestTimeout = 30 * time.Second
 )
 
 // App holds what every command shares. Tests build it directly.

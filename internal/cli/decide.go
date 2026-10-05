@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -113,32 +114,50 @@ func (a *App) runDecide(ctx context.Context, question string, choices []string, 
 	if opts.Len() < 2 {
 		return inputErrorf("give at least two distinct options")
 	}
+	if opts.Len() > typesafe.MaxChoiceOptions {
+		return inputErrorf("%d options; a choice takes at most %d (use pick for more)", opts.Len(), typesafe.MaxChoiceOptions)
+	}
 	state, err := a.state(e)
 	if err != nil {
 		return err
 	}
-	r, err := a.ask(ctx, state, typesafe.NewFields().Set("q", typesafe.Choice(question, opts)))
+	// jev-1.13 leans toward the first option, so the choice is also asked in
+	// reverse order. When the two orders disagree the call cannot act on its own.
+	r, err := a.ask(ctx, state, typesafe.NewFields().
+		Set("q", typesafe.Choice(question, opts)).
+		Set("q:reversed", typesafe.Choice(question, reverseFields(opts))))
 	if err != nil {
 		return err
 	}
-	ans := r.Answers["q"]
-	verdict := confidenceVerdict(ans.Confidence, e.Risk)
+	ans, rev := r.Answers["q"], r.Answers["q:reversed"]
+	ranked := byProbability(averaged(ans.Probabilities, rev.Probabilities), opts.Keys())
+	choice, conf := ans.Choice, min(ans.Confidence, rev.Confidence)
+	consistent := ans.Choice == rev.Choice
+	verdict := confidenceVerdict(conf, e.Risk)
+	if !consistent && verdict == VerdictAct {
+		verdict = VerdictConfirm
+	}
 	probs := typesafe.NewFields()
-	for _, o := range byProbability(ans.Probabilities, opts.Keys()) {
+	for _, o := range ranked {
 		probs.Set(o.Name, round(o.P, 3))
 	}
 	a.logDecision("decide", question, typesafe.NewFields().
-		Set("choice", ans.Choice).Set("confidence", round(ans.Confidence, 3)).Set("probabilities", probs),
+		Set("choice", choice).Set("confidence", round(conf, 3)).Set("order_consistent", consistent).Set("probabilities", probs),
 		verdict, r.Model)
 	if a.jsonOut {
 		return a.emit(typesafe.NewFields().
-			Set("choice", ans.Choice).
-			Set("confidence", round(ans.Confidence, 3)).
+			Set("choice", choice).
+			Set("confidence", round(conf, 3)).
 			Set("verdict", verdict).
+			Set("order_consistent", consistent).
 			Set("probabilities", probs).
 			Set("model", r.Model))
 	}
-	a.printf("%s: %s  (conf %.2f, risk %s, %s)\n", verdict, ans.Choice, ans.Confidence, e.Risk, r.Model)
+	note := ""
+	if !consistent {
+		note = ", answer changed with option order"
+	}
+	a.printf("%s: %s  (conf %.2f, risk %s, %s%s)\n", verdict, choice, conf, e.Risk, r.Model, note)
 	var parts []string
 	for _, k := range probs.Keys() {
 		p, _ := probs.Get(k)
@@ -182,6 +201,9 @@ func (a *App) runYesNo(ctx context.Context, question, yes, no string, e evidence
 }
 
 func (a *App) runScore(ctx context.Context, question string, levels []string, e evidence) error {
+	if len(levels) < typesafe.MinScoreLevels || len(levels) > typesafe.MaxScoreLevels {
+		return inputErrorf("give %d to %d levels, lowest first (got %d)", typesafe.MinScoreLevels, typesafe.MaxScoreLevels, len(levels))
+	}
 	state, err := a.state(e)
 	if err != nil {
 		return err
@@ -195,8 +217,7 @@ func (a *App) runScore(ctx context.Context, question string, levels []string, e 
 		return err
 	}
 	ans := r.Answers["q"]
-	idx := min(len(levels)-1, max(0, int(math.RoundToEven(ans.Score))))
-	level := levels[idx]
+	level := levels[scoreLevel(ans, len(levels))]
 	verdict := confidenceVerdict(ans.Confidence, e.Risk)
 	a.logDecision("score", question, typesafe.NewFields().
 		Set("score", round(ans.Score, 3)).Set("level", level).Set("confidence", round(ans.Confidence, 3)),
@@ -211,4 +232,20 @@ func (a *App) runScore(ctx context.Context, question string, levels []string, e 
 	}
 	a.printf("%s: %s  (score %.2f of 0–%d, conf %.2f, %s)\n", verdict, level, ans.Score, len(levels)-1, ans.Confidence, r.Model)
 	return nil
+}
+
+// scoreLevel is the most likely level. The score is a probability-weighted mean
+// and can land between two levels neither of which is likely, so it is only
+// the fallback when the answer has no probabilities.
+func scoreLevel(ans typesafe.Answer, n int) int {
+	best, bestP := -1, -1.0
+	for k, p := range ans.Probabilities {
+		if i, err := strconv.Atoi(k); err == nil && i >= 0 && i < n && (p > bestP || p == bestP && i < best) {
+			best, bestP = i, p
+		}
+	}
+	if best >= 0 {
+		return best
+	}
+	return min(n-1, max(0, int(math.RoundToEven(ans.Score))))
 }

@@ -213,8 +213,9 @@ func (f *fakeJev) SystemOne(_ context.Context, req typesafe.Request) (*typesafe.
 func answer(choice string, conf, needs float64) func(typesafe.Request) (*typesafe.Response, error) {
 	return func(typesafe.Request) (*typesafe.Response, error) {
 		return &typesafe.Response{Model: "jev-test", Usage: typesafe.Usage{InputTokens: 100}, Answers: map[string]typesafe.Answer{
-			keyTool:      {Type: "choice", Choice: choice, Confidence: conf, Probabilities: map[string]float64{choice: conf}},
-			keyNeedsTool: {Type: "noul", Noul: needs},
+			keyTool:         {Type: "choice", Choice: choice, Confidence: conf, Probabilities: map[string]float64{choice: conf}},
+			keyToolReversed: {Type: "choice", Choice: choice, Confidence: conf, Probabilities: map[string]float64{choice: conf}},
+			keyNeedsTool:    {Type: "noul", Noul: needs},
 		}}, nil
 	}
 }
@@ -256,6 +257,87 @@ func TestDecide(t *testing.T) {
 		if d.Mode != c.mode || d.Reason != c.why {
 			t.Errorf("%s: got %s/%s, want %s/%s", c.name, d.Mode, d.Reason, c.mode, c.why)
 		}
+	}
+}
+
+func TestDecideOrderCheck(t *testing.T) {
+	r, jev := newRouter(func(req typesafe.Request) (*typesafe.Response, error) {
+		resp, _ := answer("Bash", 0.9, 0.9)(req)
+		resp.Answers[keyToolReversed] = typesafe.Answer{Type: "choice", Choice: "Read", Confidence: 0.9}
+		return resp, nil
+	})
+	d := r.decide(context.Background(), input{Turns: []turn{textTurn("user", "x")}, Tools: []tool{{Name: "Bash"}, {Name: "Read"}}})
+	if d.Reason != "jev_order_disagrees" {
+		t.Fatalf("got %s/%s", d.Mode, d.Reason)
+	}
+	q, _ := jev.calls[0].Questions.Get(keyTool)
+	qr, _ := jev.calls[0].Questions.Get(keyToolReversed)
+	keys := q.(typesafe.Question).Criteria.(*typesafe.Fields).Keys()
+	rev := qr.(typesafe.Question).Criteria.(*typesafe.Fields).Keys()
+	if strings.Join(keys, ",") != noTool+",Bash,Read" || strings.Join(rev, ",") != "Read,Bash,"+noTool {
+		t.Fatalf("orders %v / %v", keys, rev)
+	}
+}
+
+func TestDecideVerify(t *testing.T) {
+	tools := []tool{{Name: "Bash", Description: "run a command"}, {Name: "Read"}, {Name: "Edit"}, {Name: "Grep"}}
+	fits := func(f map[string]float64) func(typesafe.Request) (*typesafe.Response, error) {
+		return func(req typesafe.Request) (*typesafe.Response, error) {
+			if _, ok := req.Questions.Get(keyTool); ok {
+				resp, _ := answer("Bash", 0.9, 0.9)(req)
+				p := map[string]float64{"Bash": 0.6, "Read": 0.2, "Edit": 0.1, "Grep": 0.05}
+				resp.Answers[keyTool] = typesafe.Answer{Type: "choice", Choice: "Bash", Confidence: 0.9, Probabilities: p}
+				resp.Answers[keyToolReversed] = resp.Answers[keyTool]
+				return resp, nil
+			}
+			ans := map[string]typesafe.Answer{}
+			for _, k := range req.Questions.Keys() {
+				ans[k] = typesafe.Answer{Type: "noul", Noul: f[strings.TrimPrefix(k, keyFitsPrefix)]}
+			}
+			return &typesafe.Response{Answers: ans, Usage: typesafe.Usage{InputTokens: 7}}, nil
+		}
+	}
+	in := input{Turns: []turn{textTurn("user", "x")}, Tools: tools, ToolChoice: choiceAuto}
+	r, jev := newRouter(fits(map[string]float64{"Bash": 0.4, "Read": 0.8, "Edit": 0.1}))
+	r.verify = true
+	d := r.decide(context.Background(), in)
+	if d.Mode != modeForced || d.Tool.Name != "Read" || len(jev.calls) != 2 || d.Jev.InputTokens != 107 {
+		t.Fatalf("got %s %+v", d.Mode, d.Jev)
+	}
+	if keys := jev.calls[1].Questions.Keys(); strings.Join(keys, ",") != "fits::Bash,fits::Read,fits::Edit" {
+		t.Fatalf("verify questions %v", keys)
+	}
+	if q, _ := jev.calls[1].Questions.Get("fits::Bash"); !strings.Contains(fmt.Sprint(q.(typesafe.Question).Instructions), "run a command") {
+		t.Fatal("verify question lacks the description")
+	}
+	r, _ = newRouter(fits(map[string]float64{"Bash": 0.2, "Read": 0.1, "Edit": 0.1}))
+	r.verify = true
+	if d := r.decide(context.Background(), in); d.Reason != "jev_verify_rejected" {
+		t.Fatalf("rejected: %s/%s", d.Mode, d.Reason)
+	}
+}
+
+func TestShortlistSplitsRequestsByTokens(t *testing.T) {
+	var tools []tool
+	for i := range 2000 {
+		tools = append(tools, tool{Name: fmt.Sprintf("t%04d", i), Description: strings.Repeat("d", 1000)})
+	}
+	r, jev := newRouter(func(req typesafe.Request) (*typesafe.Response, error) {
+		if tok := typesafe.ApproxTokens(req); tok > typesafe.MaxRequestTokens {
+			t.Errorf("request of %d tokens", tok)
+		}
+		if _, ok := req.Questions.Get(keyTool); ok {
+			return answer("t0000", 0.9, 0.9)(req)
+		}
+		ans := map[string]typesafe.Answer{}
+		for _, k := range req.Questions.Keys() {
+			ans[k] = typesafe.Answer{Type: "choice", Probabilities: map[string]float64{}}
+		}
+		return &typesafe.Response{Answers: ans}, nil
+	})
+	r.decide(context.Background(), input{Turns: []turn{textTurn("user", "x")}, Tools: tools, ToolChoice: choiceAuto})
+	if len(jev.calls) < 4 { // 17 shards of ~12k tokens
+		t.Fatalf("%d calls: shards not split across requests", len(jev.calls))
 	}
 }
 
@@ -303,7 +385,7 @@ func TestShortlist(t *testing.T) {
 			}
 			return &typesafe.Response{Answers: ans, Usage: typesafe.Usage{InputTokens: 10}}, nil
 		}
-		if n := req.Questions.Keys(); len(n) != 2 {
+		if n := req.Questions.Keys(); len(n) != 3 {
 			t.Errorf("final questions = %v", n)
 		}
 		return answer("t084", 0.95, 0.95)(req)

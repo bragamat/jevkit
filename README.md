@@ -144,9 +144,13 @@ CONFIRM: no  (conf 0.81, risk high, jev-1.13)
 
 | Command | Question type | Verdicts |
 |---|---|---|
-| `decide QUESTION OPTION OPTION...` | choice (`name` or `name=description`) | `ACT`, `CONFIRM`, `REPHRASE` |
+| `decide QUESTION OPTION OPTION...` | choice (`name` or `name=description`), 2 to 255 options | `ACT`, `CONFIRM`, `REPHRASE` |
 | `yesno QUESTION [--yes ...] [--no ...]` | noul | `YES`, `NO`, `UNSURE` |
-| `score QUESTION LEVEL...` | score, levels lowest first | `ACT`, `CONFIRM`, `REPHRASE` |
+| `score QUESTION LEVEL...` | score, 2 to 10 levels lowest first; the verdict names the most likely level | `ACT`, `CONFIRM`, `REPHRASE` |
+
+`decide`, `pick` and `find` ask each choice in two option orders in the same request and average them,
+because jev-1.13 leans toward the option listed first. When `decide`'s two orders pick different options,
+an `ACT` becomes `CONFIRM` and `--json` reports `"order_consistent": false`.
 
 Evidence comes from `--ctx FILE` (repeatable; `-` reads stdin) and `--text`. It is capped at 60,000
 characters: filter first with `jev find` and send only what the decision needs.
@@ -195,6 +199,13 @@ and an upstream 400/422 on a rewritten body is replayed with the original body. 
 `x-jev-gateway-mode`, `-tool`, `-reason`, `-confidence` and `-latency-ms`. Send `x-jev-gateway: off` to skip
 routing for one request.
 
+**How it asks Jev.** Two short requests, in the shape of TypeSafe's skill-suggestion cookbook. The first
+asks which tool comes next, in two option orders (jev-1.13 leans toward the first option, so the orders must
+agree, with `no_tool_needed` first in the main one), plus whether a tool is needed at all. The second
+re-checks the top three tools with one yes/no question each, using their full descriptions; if none fits at
+least 0.3, the request passes through. More than 120 tools are shortlisted first, in as many parallel requests
+as the 64k-token limit needs. Set `JEV_VERIFY=false` to skip the second request.
+
 **Dashboard.** `http://127.0.0.1:8789/dashboard` shows the gateway and jev live over SSE. Gateway
 panels: requests per mode, why requests were not steered, Jev latency, and LLM and Jev tokens with cost.
 jev panels: the decisions other processes log, and today's calls per command. A switch turns routing
@@ -211,6 +222,8 @@ publish over a private network such as `tailscale serve`, never to the internet.
 | `JEV_ON_NONE` | `force_none` (send `tool_choice: none` when Jev sees no tool needed); `passthrough` to leave it |
 | `JEV_ROUTING` | on (`false` starts with routing disabled) |
 | `JEV_BUDGET_MS` | `2500`, the total time Jev may add to one request |
+| `JEV_VERIFY` | on (`false` routes on the first answer alone) |
+| `JEV_MAX_STATE_CHARS` | `54000`, conversation sent to Jev (newest turns kept) |
 | `JEV_GATEWAY_LOG` | `$XDG_STATE_HOME/jev/gateway.jsonl` (rotated at 20 MB) |
 
 ## Output
@@ -232,12 +245,12 @@ prefixed with the subcommand. A missing file, a bad JSON spec or a missing key n
 |---|---|
 | `TYPESAFE_API_KEY` | required |
 | `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` |
-| `TYPESAFE_DEFAULT_MODEL` | `jev-latest` (or pass `--model`) |
+| `TYPESAFE_DEFAULT_MODEL` | `jev-1.13.0`, pinned because the thresholds were tuned on it (or pass `--model`; `jev-latest` follows new releases) |
 | `JEV_USAGE_LOG` | `$XDG_STATE_HOME/jev/usage.jsonl` |
 | `JEV_DECISION_LOG` | `$XDG_STATE_HOME/jev/decisions.jsonl` |
 
 Requests that fail with 408, 429 or 5xx, or with a transient network error (timeout, refused or reset
-connection, truncated response), are retried up to 3 times with exponential backoff. Other errors, such as
+connection, truncated response), are retried up to 2 times with exponential backoff, like TypeSafe's SDK; each attempt times out after 30 s. Other errors, such as
 a malformed `TYPESAFE_BASE_URL`, fail at once. A `Retry-After` header is honored up to 60 seconds; longer
 values fall back to the normal backoff, so the CLI never stalls an agent for minutes. (The official Python
 SDK honors any value and relies on its overall timeout instead.)

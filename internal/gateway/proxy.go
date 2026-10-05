@@ -42,6 +42,7 @@ func New(cfg Config, jev jevClient, model string, events *Events) *Gateway {
 			model:           model,
 			minConfidence:   cfg.MinConfidence,
 			forceNone:       cfg.ForceNone,
+			verify:          cfg.Verify,
 			budget:          cfg.Budget,
 			maxStateChars:   cfg.MaxStateChars,
 			maxMessageChars: cfg.MaxMessageChars,

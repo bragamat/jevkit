@@ -55,17 +55,21 @@ func readSpec(path string) ([]specQuestion, error) {
 func (q specQuestion) question() (typesafe.Question, error) {
 	switch q.Type {
 	case "choice":
+		crit := typesafe.NewFields()
 		switch c := q.Criteria.(type) {
 		case *typesafe.Fields:
-			return typesafe.Choice(q.Instructions, c), nil
+			crit = c
 		case []any:
-			crit := typesafe.NewFields()
 			for _, x := range c {
 				crit.Set(display(x), nil)
 			}
-			return typesafe.Choice(q.Instructions, crit), nil
+		default:
+			return typesafe.Question{}, inputErrorf("question %q: choice criteria must be an object or a list", q.ID)
 		}
-		return typesafe.Question{}, inputErrorf("question %q: choice criteria must be an object or a list", q.ID)
+		if n := crit.Len(); n < 2 || n > typesafe.MaxChoiceOptions {
+			return typesafe.Question{}, inputErrorf("question %q: a choice takes 2 to %d options (got %d)", q.ID, typesafe.MaxChoiceOptions, n)
+		}
+		return typesafe.Choice(q.Instructions, crit), nil
 	case "noul":
 		if q.Criteria == nil {
 			return typesafe.Noul(q.Instructions, nil, nil), nil
@@ -73,8 +77,8 @@ func (q specQuestion) question() (typesafe.Question, error) {
 		return typesafe.Question{Type: "noul", Instructions: q.Instructions, Criteria: q.Criteria}, nil
 	default:
 		levels, ok := q.Criteria.([]any)
-		if !ok || len(levels) == 0 {
-			return typesafe.Question{}, inputErrorf("question %q: score criteria must be a non-empty list of levels", q.ID)
+		if !ok || len(levels) < typesafe.MinScoreLevels || len(levels) > typesafe.MaxScoreLevels {
+			return typesafe.Question{}, inputErrorf("question %q: score criteria must be a list of %d to %d levels", q.ID, typesafe.MinScoreLevels, typesafe.MaxScoreLevels)
 		}
 		return typesafe.Score(q.Instructions, levels), nil
 	}

@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -65,34 +66,41 @@ func byProbability(probs map[string]float64, keys []string) []option {
 	return out
 }
 
+// reverseFields returns f with its keys in the opposite order.
+func reverseFields(f *typesafe.Fields) *typesafe.Fields {
+	keys := slices.Clone(f.Keys())
+	slices.Reverse(keys)
+	out := typesafe.NewFields()
+	for _, k := range keys {
+		v, _ := f.Get(k)
+		out.Set(k, v)
+	}
+	return out
+}
+
+// averaged is the mean of two probability maps over the keys of either.
+func averaged(x, y map[string]float64) map[string]float64 {
+	out := map[string]float64{}
+	for k, p := range x {
+		out[k] += p / 2
+	}
+	for k, p := range y {
+		out[k] += p / 2
+	}
+	return out
+}
+
 // pick chooses one option. More options than one choice holds run in two
 // rounds: the best three of each group compete in a final.
 func (a *App) pick(ctx context.Context, question string, opts *typesafe.Fields, state any) ([]option, error) {
-	round := func(ctx context.Context, keys []string) ([]option, error) {
-		criteria := typesafe.NewFields()
-		for _, k := range keys {
-			d, _ := opts.Get(k)
-			criteria.Set(k, d)
-		}
-		r, err := a.ask(ctx, state, typesafe.NewFields().Set("q", typesafe.Choice(question, criteria)))
-		if err != nil {
-			return nil, err
-		}
-		return byProbability(r.Answers["q"].Probabilities, keys), nil
-	}
 	keys := opts.Keys()
-	if len(keys) <= windowSize {
-		return round(ctx, keys)
-	}
 	var groups [][]string
 	for i := 0; i < len(keys); i += windowSize {
 		groups = append(groups, keys[i:min(i+windowSize, len(keys))])
 	}
-	partial, err := parallel(ctx, len(groups), concurrency, func(ctx context.Context, g int) ([]option, error) {
-		return round(ctx, groups[g])
-	})
-	if err != nil {
-		return nil, err
+	partial, err := a.rankGroups(ctx, question, opts, state, groups)
+	if err != nil || len(groups) == 1 {
+		return slices.Concat(partial...), err
 	}
 	var finalists []string
 	for _, p := range partial {
@@ -100,7 +108,55 @@ func (a *App) pick(ctx context.Context, question string, opts *typesafe.Fields, 
 			finalists = append(finalists, o.Name)
 		}
 	}
-	return round(ctx, finalists)
+	final, err := a.rankGroups(ctx, question, opts, state, [][]string{finalists})
+	if err != nil {
+		return nil, err
+	}
+	return final[0], nil
+}
+
+// rankGroups ranks the options of each group with one choice, asked in both
+// orders and averaged because jev-1.13 leans toward the first option. Groups
+// share requests, as many per request as the API's token limit allows.
+func (a *App) rankGroups(ctx context.Context, question string, opts *typesafe.Fields, state any, groups [][]string) ([][]option, error) {
+	room := typesafe.MaxRequestTokens - typesafe.ApproxTokens(state)
+	var batches [][]int
+	used := 0
+	choices := make([]typesafe.Question, len(groups))
+	for g, keys := range groups {
+		criteria := typesafe.NewFields()
+		for _, k := range keys {
+			d, _ := opts.Get(k)
+			criteria.Set(k, d)
+		}
+		choices[g] = typesafe.Choice(question, criteria)
+		cost := 2*typesafe.ApproxTokens(choices[g]) + 32
+		if len(batches) == 0 || used+cost > room {
+			batches = append(batches, nil)
+			used = 0
+		}
+		batches[len(batches)-1] = append(batches[len(batches)-1], g)
+		used += cost
+	}
+	out := make([][]option, len(groups))
+	_, err := parallel(ctx, len(batches), concurrency, func(ctx context.Context, b int) (struct{}, error) {
+		questions := typesafe.NewFields()
+		for _, g := range batches[b] {
+			q := choices[g]
+			questions.Set(fmt.Sprintf("q%d", g), q)
+			questions.Set(fmt.Sprintf("q%d:reversed", g), typesafe.Choice(q.Instructions, reverseFields(q.Criteria.(*typesafe.Fields))))
+		}
+		r, err := a.ask(ctx, state, questions)
+		if err != nil {
+			return struct{}{}, err
+		}
+		for _, g := range batches[b] {
+			probs := averaged(r.Answers[fmt.Sprintf("q%d", g)].Probabilities, r.Answers[fmt.Sprintf("q%d:reversed", g)].Probabilities)
+			out[g] = byProbability(probs, groups[g])
+		}
+		return struct{}{}, nil
+	})
+	return out, err
 }
 
 func (a *App) runPick(ctx context.Context, question, optionsPath, statePath string, top int) error {
@@ -110,6 +166,10 @@ func (a *App) runPick(ctx context.Context, question, optionsPath, statePath stri
 	}
 	if opts.Len() == 0 {
 		return inputErrorf("no options in %s", optionsPath)
+	}
+	// Each group sends 3 finalists, and the final is one choice.
+	if opts.Len() > typesafe.MaxChoiceOptions/3*windowSize {
+		return inputErrorf("%d options is more than two rounds can pick from", opts.Len())
 	}
 	var state any = typesafe.NewFields().Set("task", question)
 	if statePath != "" {

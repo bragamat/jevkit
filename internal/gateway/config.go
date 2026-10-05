@@ -31,6 +31,7 @@ type Config struct {
 
 	MinConfidence   float64
 	ForceNone       bool
+	Verify          bool
 	Routing         bool
 	Budget          time.Duration
 	MaxStateChars   int
@@ -71,9 +72,10 @@ func FromEnv(stateDir string) Config {
 		},
 		MinConfidence:   envFloat("JEV_MIN_CONFIDENCE", 0.7),
 		ForceNone:       envString("JEV_ON_NONE", "force_none") == "force_none",
+		Verify:          envString("JEV_VERIFY", "true") != "false",
 		Routing:         envString("JEV_ROUTING", "true") != "false",
 		Budget:          time.Duration(envInt("JEV_BUDGET_MS", 2500)) * time.Millisecond,
-		MaxStateChars:   envInt("JEV_MAX_STATE_CHARS", 60000),
+		MaxStateChars:   envInt("JEV_MAX_STATE_CHARS", 54000),
 		MaxMessageChars: envInt("JEV_MAX_MESSAGE_CHARS", 4000),
 		EventLog:        envString("JEV_GATEWAY_LOG", filepath.Join(stateDir, "gateway.jsonl")),
 		DecisionLog:     envString("JEV_DECISION_LOG", filepath.Join(stateDir, "decisions.jsonl")),
