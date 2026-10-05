@@ -25,8 +25,6 @@ const (
 	concurrency = 16
 	// requestTimeout applies to each HTTP attempt.
 	requestTimeout = 120 * time.Second
-	// usdPerMillionInputTokens is Jev's published input price, used only for the usage estimate.
-	usdPerMillionInputTokens = 0.042
 )
 
 // App holds what every command shares. Tests build it directly.
@@ -65,6 +63,15 @@ func stateFile(env, name string) string {
 	if v := os.Getenv(env); v != "" {
 		return v
 	}
+	dir := stateDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, name)
+}
+
+// stateDir is where jev-cli keeps its logs: $XDG_STATE_HOME/jev.
+func stateDir() string {
 	dir := os.Getenv("XDG_STATE_HOME")
 	if dir == "" {
 		home, err := os.UserHomeDir()
@@ -73,7 +80,7 @@ func stateFile(env, name string) string {
 		}
 		dir = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(dir, "jev", name)
+	return filepath.Join(dir, "jev")
 }
 
 // getClient builds the API client on first use; commands call it from parallel goroutines.

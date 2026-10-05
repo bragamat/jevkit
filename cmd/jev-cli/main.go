@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -29,11 +30,21 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	root := cli.NewRoot(cli.NewApp(), versionString())
+	// A jev-claude or jev-codex symlink to this binary runs that launcher, as
+	// the npm jev-gateway's commands of the same names did.
+	name := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	if agent, ok := strings.CutPrefix(name, "jev-"); ok && (agent == "claude" || agent == "codex") {
+		root.SetArgs(append([]string{agent}, os.Args[1:]...))
+	}
 	cmd, err := root.ExecuteContextC(ctx)
 	if err == nil {
 		return 0
 	}
-	name := "jev-cli"
+	var exit cli.ExitError
+	if errors.As(err, &exit) {
+		return exit.Code
+	}
+	name = "jev-cli"
 	if cmd != nil && cmd != root {
 		name += " " + cmd.Name()
 	}

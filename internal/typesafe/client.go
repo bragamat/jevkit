@@ -26,6 +26,9 @@ const (
 	APIKeyEnv       = "TYPESAFE_API_KEY" //nolint:gosec // the variable name, not a credential
 	BaseURLEnv      = "TYPESAFE_BASE_URL"
 	DefaultModelEnv = "TYPESAFE_DEFAULT_MODEL"
+
+	// USDPerMillionInputTokens is Jev's published input price, used only for cost estimates.
+	USDPerMillionInputTokens = 0.042
 )
 
 // maxRetryAfter caps how long a Retry-After header can make the client wait. Longer

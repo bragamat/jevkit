@@ -63,7 +63,7 @@ func (a *App) runUsage(today bool) error {
 	slices.SortFunc(rows, func(x, y usageRow) int {
 		return cmp.Or(cmp.Compare(y.InputTokens, x.InputTokens), cmp.Compare(x.Command, y.Command))
 	})
-	usd := float64(total.InputTokens) * usdPerMillionInputTokens / 1e6
+	usd := float64(total.InputTokens) * typesafe.USDPerMillionInputTokens / 1e6
 	if a.jsonOut {
 		return a.emit(typesafe.NewFields().
 			Set("commands", rows).

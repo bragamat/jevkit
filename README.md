@@ -167,6 +167,50 @@ probably wrong.
 Every decision is appended to a local log (see [Files](#files)) so you can audit what the agent decided
 and why.
 
+## Gateway
+
+`jev-cli gateway` is a local proxy between a coding agent and its LLM. Before each request reaches the
+model, Jev reads the conversation and the tool list and predicts which tool the next step needs. When it is
+confident, the gateway steers the request; otherwise it passes the request through unchanged. Responses,
+including streams, go back byte for byte.
+
+```sh
+jev-cli claude            # Claude Code through the gateway (starts it if needed)
+jev-cli codex             # Codex through the gateway (ChatGPT login or API key)
+jev-cli gateway status    # ports, upstreams, routing state
+jev-cli gateway start|stop|run
+```
+
+A `jev-claude` or `jev-codex` symlink to `jev-cli` behaves like `jev-cli claude` / `jev-cli codex`.
+
+| Agent | Port | API | How it steers |
+|---|---|---|---|
+| Claude Code | 8789 | Anthropic Messages | a `<system-reminder>` hint, so thinking and prompt caching keep working |
+| Codex | 8790 | OpenAI Responses | `tool_choice` set to the predicted tool, or `none` |
+
+Gateway failures never fail the agent's request: a Jev error, timeout or low confidence means passthrough,
+and an upstream 400/422 on a rewritten body is replayed with the original body. Every response carries
+`x-jev-gateway-mode`, `-tool`, `-reason`, `-confidence` and `-latency-ms`. Send `x-jev-gateway: off` to skip
+routing for one request.
+
+**Dashboard.** `http://127.0.0.1:8789/dashboard` shows the gateway and jev-cli live over SSE. Gateway
+panels: requests per mode, why requests were not steered, Jev latency, and LLM and Jev tokens with cost.
+jev-cli panels: the decisions other processes log, and today's calls per command. A switch turns routing
+on and off for the whole gateway, and only the dashboard page itself can flip it. Bind to `127.0.0.1` and
+publish over a private network such as `tailscale serve`, never to the internet.
+
+| Variable | Default |
+|---|---|
+| `JEV_GATEWAY_HOST` | `127.0.0.1` |
+| `JEV_CLAUDE_PORT` / `JEV_CODEX_PORT` | `8789` / `8790` |
+| `JEV_CLAUDE_UPSTREAM_BASE_URL` | `https://api.anthropic.com/v1` |
+| `JEV_CODEX_UPSTREAM_BASE_URL` | ChatGPT backend with a ChatGPT login, else `https://api.openai.com/v1` |
+| `JEV_MIN_CONFIDENCE` | `0.7` |
+| `JEV_ON_NONE` | `force_none` (send `tool_choice: none` when Jev sees no tool needed); `passthrough` to leave it |
+| `JEV_ROUTING` | on (`false` starts with routing disabled) |
+| `JEV_BUDGET_MS` | `2500`, the total time Jev may add to one request |
+| `JEV_GATEWAY_LOG` | `$XDG_STATE_HOME/jev/gateway.jsonl` (rotated at 20 MB) |
+
 ## Output
 
 Text by default, short enough to land in an agent's context without cost. `--json` (before or after the

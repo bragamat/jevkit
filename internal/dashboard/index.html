@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev Gateway</title>
+<style>
+:root {
+  --bg: #0d1014; --panel: #151a21; --panel2: #1b2129; --line: #262e38; --text: #e3e8ee;
+  --muted: #8b97a5; --accent: #6cb6ff; --hint: #b58cff; --forced: #4cc38a; --none: #e0b252;
+  --pass: #5b6573; --bad: #f2777a; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+main { padding: 16px 20px 40px; display: grid; gap: 16px; max-width: 1400px; margin: 0 auto; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); display: inline-block; margin-right: 6px; }
+.dot.on { background: var(--forced); box-shadow: 0 0 8px var(--forced); }
+.muted { color: var(--muted); }
+.spacer { flex: 1; }
+select, button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; font: inherit; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.switch .track { width: 38px; height: 21px; border-radius: 11px; background: var(--pass); position: relative; transition: background .15s; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on .track { background: var(--forced); }
+.switch.on .track::after { left: 19px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.grid { display: grid; gap: 16px; }
+.cols2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.card { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.card b { font-size: 15px; }
+.card .mono { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.tile .v { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile .l { color: var(--muted); font-size: 12px; }
+.tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+svg { display: block; width: 100%; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.bars div { display: grid; grid-template-columns: minmax(120px, 210px) 1fr 44px; gap: 10px; align-items: center; margin: 5px 0; font-size: 13px; }
+.bars .bar { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+.bars .bar span { display: block; height: 100%; background: var(--accent); }
+.bars .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.scroll { overflow: auto; max-height: 460px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.t { white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 12px; font-weight: 500; background: var(--pass); color: #fff; }
+.chip.hint { background: var(--hint); } .chip.forced { background: var(--forced); color: #08130d; } .chip.none { background: var(--none); color: #1a1406; }
+.chip.ACT, .chip.YES { background: var(--forced); color: #08130d; } .chip.CONFIRM, .chip.UNSURE { background: var(--none); color: #1a1406; } .chip.REPHRASE, .chip.NO { background: var(--bad); }
+.q { max-width: 620px; }
+tr.new td { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: #24405e; } to { background: transparent; } }
+.empty { color: var(--muted); padding: 10px 0; }
+@media (max-width: 640px) { header, main { padding-left: 16px; padding-right: 16px; } .tile .v { font-size: 20px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Jev Gateway</h1>
+  <span class="muted"><span id="conn" class="dot"></span><span id="connText">connecting…</span></span>
+  <span class="muted" id="uptime"></span>
+  <span class="spacer"></span>
+  <label class="muted">client <select id="client"><option value="">all</option><option>claude</option><option>codex</option></select></label>
+  <label class="muted">range <select id="range"><option value="900">15 min</option><option value="3600" selected>1 hour</option><option value="21600">6 hours</option><option value="86400">24 hours</option><option value="0">all</option></select></label>
+  <span id="routing" class="switch" role="switch" tabindex="0" title="Routing on: ask Jev and steer. Off: proxy only."><span class="track"></span><span id="routingText">routing</span></span>
+</header>
+<main>
+  <section class="cards" id="routers"></section>
+  <section class="tiles" id="tiles"></section>
+  <section class="grid cols2">
+    <div class="panel"><h2>Modes over time</h2><svg id="timeline" height="150" role="img" aria-label="Requests per mode over time"></svg>
+      <div class="legend"><span><i style="background:var(--hint)"></i>hint</span><span><i style="background:var(--forced)"></i>forced</span><span><i style="background:var(--none)"></i>none</span><span><i style="background:var(--pass)"></i>passthrough</span></div></div>
+    <div class="panel"><h2>Why not routed</h2><div class="bars" id="reasons"></div></div>
+  </section>
+  <section class="panel"><h2>Requests</h2><div class="scroll"><table>
+    <thead><tr><th>time</th><th>client</th><th>model</th><th>mode</th><th>tool</th><th>conf</th><th>reason</th><th>status</th><th>jev ms</th><th>total</th><th>tokens in/out</th></tr></thead>
+    <tbody id="requests"></tbody></table></div></section>
+  <section class="grid cols2">
+    <div class="panel"><h2>jev-cli decisions</h2><div class="scroll"><table>
+      <thead><tr><th>time</th><th>kind</th><th>question</th><th>verdict</th><th>conf</th></tr></thead>
+      <tbody id="decisions"></tbody></table></div></div>
+    <div class="panel"><h2>jev-cli today, by command</h2><table>
+      <thead><tr><th>command</th><th style="text-align:right">calls</th><th style="text-align:right">input tokens</th><th style="text-align:right">cost</th></tr></thead>
+      <tbody id="cmds"></tbody></table></div>
+  </section>
+</main>
+<script>
+"use strict";
+const S = { events: [], decisions: [], usage: [], routers: [], routing: true, usd: 0.042, started: null, fresh: new Set() };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "k" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(Math.round(n));
+const usd = (n) => "$" + (n < 0.01 ? n.toFixed(4) : n.toFixed(2));
+const pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "–";
+const hms = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const jevTime = (ts) => new Date(ts); // jev-cli writes local time without a zone
+
+function filtered() {
+  const client = $("client").value, range = +$("range").value, since = range ? Date.now() - range * 1000 : 0;
+  return S.events.filter((e) => (!client || e.client === client) && new Date(e.time).getTime() >= since);
+}
+
+function render() {
+  const ev = filtered();
+  renderRouters(); renderTiles(ev); renderTimeline(ev); renderReasons(ev); renderRequests(ev); renderJev();
+  S.fresh.clear();
+}
+
+function renderRouters() {
+  $("routers").innerHTML = S.routers.map((r) => `<div class="card"><b>${esc(r.client)}</b> <span class="muted">:${r.port} → ${esc(r.route)}</span>
+    <div class="mono">${esc(r.upstream)}</div></div>`).join("");
+  const sw = $("routing");
+  sw.classList.toggle("on", S.routing);
+  sw.setAttribute("aria-checked", S.routing);
+  $("routingText").textContent = S.routing ? "routing on" : "routing off (proxy only)";
+}
+
+function p95(xs) { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(s.length * 0.95))]; }
+
+function renderTiles(ev) {
+  const routed = ev.filter((e) => e.mode !== "passthrough").length;
+  const asked = ev.filter((e) => e.jev);
+  const failed = asked.filter((e) => e.jev.error || e.reason === "jev_unexpected_answer").length;
+  const lat = asked.map((e) => e.jev.latencyMs || 0);
+  const jevIn = asked.reduce((a, e) => a + (e.jev.inputTokens || 0), 0);
+  const llmIn = ev.reduce((a, e) => a + (e.usage?.input || 0), 0), llmOut = ev.reduce((a, e) => a + (e.usage?.output || 0), 0);
+  const cached = ev.reduce((a, e) => a + (e.usage?.cached || 0), 0);
+  const today = new Date().toDateString();
+  const cliIn = S.usage.filter((u) => jevTime(u.ts).toDateString() === today).reduce((a, u) => a + (u.input_tokens || 0), 0);
+  const tiles = [
+    ["requests", fmt(ev.length), `${new Set(ev.map((e) => e.model)).size} models`],
+    ["steered by Jev", pct(routed, ev.length), `${routed} hint / forced / none`],
+    ["Jev calls", fmt(asked.length), failed ? `${failed} failed` : "no failures"],
+    ["Jev latency", lat.length ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) + " ms" : "–", lat.length ? `p95 ${p95(lat)} ms` : ""],
+    ["LLM tokens", fmt(llmIn + llmOut), `${pct(cached, llmIn)} of input cached`],
+    ["Jev tokens (gateway)", fmt(jevIn), usd(jevIn * S.usd / 1e6)],
+    ["jev-cli today", fmt(cliIn), usd(cliIn * S.usd / 1e6)],
+  ];
+  $("tiles").innerHTML = tiles.map(([l, v, s]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+}
+
+const MODES = [["passthrough", "var(--pass)"], ["none", "var(--none)"], ["forced", "var(--forced)"], ["hint", "var(--hint)"]];
+function renderTimeline(ev) {
+  const svg = $("timeline"), W = svg.clientWidth || 600, H = 150, pad = 18;
+  if (!ev.length) { svg.innerHTML = `<text x="0" y="20" fill="#8b97a5" font-size="12">no requests in range</text>`; return; }
+  const range = +$("range").value, now = Date.now();
+  const t0 = range ? now - range * 1000 : new Date(ev[0].time).getTime(), span = Math.max(60000, now - t0);
+  const n = Math.max(10, Math.min(60, Math.floor(W / 14))), bw = W / n;
+  const buckets = Array.from({ length: n }, () => ({}));
+  for (const e of ev) {
+    const i = Math.min(n - 1, Math.max(0, Math.floor((new Date(e.time).getTime() - t0) / span * n)));
+    buckets[i][e.mode] = (buckets[i][e.mode] || 0) + 1;
+  }
+  const top = Math.max(1, ...buckets.map((b) => Object.values(b).reduce((a, c) => a + c, 0)));
+  let out = "";
+  buckets.forEach((b, i) => {
+    let y = H - pad;
+    for (const [m, color] of MODES) {
+      const c = b[m] || 0; if (!c) continue;
+      const h = (H - pad - 4) * c / top; y -= h;
+      out += `<rect x="${(i * bw + 1).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" rx="1.5"><title>${m}: ${c}</title></rect>`;
+    }
+  });
+  out += `<text x="0" y="${H - 3}" fill="#8b97a5" font-size="11">${hms(new Date(t0))}</text><text x="${W}" y="${H - 3}" fill="#8b97a5" font-size="11" text-anchor="end">now</text><text x="${W}" y="11" fill="#8b97a5" font-size="11" text-anchor="end">max ${top}/bar</text>`;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = out;
+}
+
+function renderReasons(ev) {
+  const counts = {};
+  for (const e of ev) if (e.mode === "passthrough") counts[e.reason || "unknown"] = (counts[e.reason || "unknown"] || 0) + 1;
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const top = rows[0]?.[1] || 1;
+  $("reasons").innerHTML = rows.length ? rows.map(([r, c]) => `<div><span>${esc(r)}</span><span class="bar"><span style="width:${100 * c / top}%"></span></span><span class="n">${c}</span></div>`).join("")
+    : `<div class="empty">every request in range was steered</div>`;
+}
+
+function renderRequests(ev) {
+  const rows = ev.slice(-150).reverse();
+  $("requests").innerHTML = rows.length ? rows.map((e) => `<tr class="${S.fresh.has(e.id) ? "new" : ""}">
+    <td class="t">${hms(new Date(e.time))}</td><td>${esc(e.client)}</td><td class="muted">${esc(e.model)}</td>
+    <td><span class="chip ${esc(e.mode)}">${esc(e.mode)}</span></td><td>${esc(e.tool || (e.jev?.choice === "no_tool_needed" ? "–" : ""))}</td>
+    <td class="num">${e.confidence ? e.confidence.toFixed(2) : ""}</td><td class="muted">${esc(e.reason)}${e.jev?.error ? ` <span title="${esc(e.jev.error)}">⚠</span>` : ""}</td>
+    <td class="num">${e.status}</td><td class="num">${e.jev ? e.jev.latencyMs : ""}</td><td class="num">${(e.durationMs / 1000).toFixed(1)} s</td>
+    <td class="num">${e.usage ? fmt(e.usage.input) + " / " + fmt(e.usage.output) : ""}</td></tr>`).join("")
+    : `<tr><td colspan="11" class="empty">no requests yet: start an agent with jev-cli claude or jev-cli codex</td></tr>`;
+}
+
+function renderJev() {
+  const ds = S.decisions.slice(-100).reverse();
+  $("decisions").innerHTML = ds.length ? ds.map((d) => {
+    const a = d.answer || {}, conf = a.confidence ?? a.p_yes ?? a.score;
+    return `<tr><td class="t">${esc(hms(jevTime(d.ts)))}</td><td>${esc(d.kind)}</td><td class="q" title="${esc(d.cwd)}">${esc(d.question)}</td>
+      <td><span class="chip ${esc(d.verdict)}">${esc(d.verdict)}</span>${a.choice ? " " + esc(a.choice) : ""}</td><td class="num">${conf != null ? (+conf).toFixed(2) : ""}</td></tr>`;
+  }).join("") : `<tr><td colspan="5" class="empty">no decisions logged</td></tr>`;
+  const today = new Date().toDateString(), by = {};
+  for (const u of S.usage) {
+    if (jevTime(u.ts).toDateString() !== today) continue;
+    const r = by[u.cmd] ||= { calls: 0, tokens: 0 };
+    r.calls++; r.tokens += u.input_tokens || 0;
+  }
+  const rows = Object.entries(by).sort((a, b) => b[1].tokens - a[1].tokens);
+  $("cmds").innerHTML = rows.length ? rows.map(([c, r]) => `<tr><td>${esc(c)}</td><td class="num">${r.calls}</td><td class="num">${fmt(r.tokens)}</td><td class="num">${usd(r.tokens * S.usd / 1e6)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">no jev-cli calls today</td></tr>`;
+}
+
+function uptime() {
+  if (!S.started) return;
+  const s = Math.floor((Date.now() - new Date(S.started).getTime()) / 1000);
+  $("uptime").textContent = "up " + (s >= 86400 ? Math.floor(s / 86400) + "d " : "") + Math.floor(s % 86400 / 3600) + "h " + Math.floor(s % 3600 / 60) + "m";
+}
+
+let pending = false;
+function soon() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; render(); }); } }
+
+function connect() {
+  const es = new EventSource("/dashboard/stream");
+  const status = (on, text) => { $("conn").classList.toggle("on", on); $("connText").textContent = text; };
+  es.onopen = () => status(true, "live");
+  es.onerror = () => status(false, "reconnecting…");
+  es.addEventListener("snapshot", (m) => {
+    const d = JSON.parse(m.data);
+    Object.assign(S, { events: d.events || [], decisions: d.decisions || [], usage: d.usage || [], routers: d.routers || [], routing: d.routing, usd: d.usdPerMillion, started: d.started });
+    uptime(); render();
+  });
+  es.addEventListener("route", (m) => { const e = JSON.parse(m.data); S.events.push(e); S.fresh.add(e.id); if (S.events.length > 5000) S.events.splice(0, 1000); soon(); });
+  es.addEventListener("decision", (m) => { S.decisions.push(JSON.parse(m.data)); if (S.decisions.length > 500) S.decisions.shift(); soon(); });
+  es.addEventListener("usage", (m) => { S.usage.push(JSON.parse(m.data)); soon(); });
+  es.addEventListener("routing", (m) => { S.routing = JSON.parse(m.data).routing; renderRouters(); });
+}
+
+async function toggleRouting() {
+  const sw = $("routing");
+  sw.style.opacity = .5;
+  try {
+    const r = await fetch("/dashboard/routing", { method: "POST", headers: { "Content-Type": "application/json", "X-Jev-Dashboard": "1" }, body: JSON.stringify({ enabled: !S.routing }) });
+    if (r.ok) S.routing = (await r.json()).routing;
+  } finally { sw.style.opacity = 1; renderRouters(); }
+}
+
+$("routing").addEventListener("click", toggleRouting);
+$("routing").addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleRouting(); } });
+$("client").addEventListener("change", render);
+$("range").addEventListener("change", render);
+window.addEventListener("resize", soon);
+setInterval(() => { uptime(); soon(); }, 30000);
+connect();
+</script>
+</body>
+</html>
