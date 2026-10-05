@@ -20,8 +20,19 @@ You still own the work. Jev owns narrow judgments you would otherwise make by gu
 ## Before the first call
 
 ```sh
-command -v jev-cli || curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh   # Windows: irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex
+# Linux and macOS: Homebrew when present, otherwise the install script (~/.local/bin).
+command -v jev-cli >/dev/null || { command -v brew >/dev/null && brew install --cask bragamat/tap/jev-cli; } \
+  || curl -fsSL https://raw.githubusercontent.com/bragamat/jevkit/main/install.sh | sh
 test -n "$TYPESAFE_API_KEY" || echo "TYPESAFE_API_KEY is not set: ask the user for a key from console.typesafe.ai"
+```
+
+```powershell
+# Windows: Scoop when present, otherwise the install script (%LOCALAPPDATA%\Programs\jev-cli).
+if (-not (Get-Command jev-cli -ErrorAction SilentlyContinue)) {
+  if (Get-Command scoop -ErrorAction SilentlyContinue) { scoop bucket add bragamat https://github.com/bragamat/scoop-bucket; scoop install bragamat/jev-cli }
+  else { irm https://raw.githubusercontent.com/bragamat/jevkit/main/install.ps1 | iex }
+}
+if (-not $env:TYPESAFE_API_KEY) { "TYPESAFE_API_KEY is not set: ask the user for a key from console.typesafe.ai" }
 ```
 
 Installing software on the user's machine needs their go-ahead if your instructions require it. Never print, log or commit the key. If it is missing, stop and ask the user; do not work around it.
