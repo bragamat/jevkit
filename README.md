@@ -219,7 +219,7 @@ publish over a private network such as `tailscale serve`, never to the internet.
 | `JEV_CLAUDE_UPSTREAM_BASE_URL` | `https://api.anthropic.com/v1` |
 | `JEV_CODEX_UPSTREAM_BASE_URL` | ChatGPT backend with a ChatGPT login, else `https://api.openai.com/v1` |
 | `JEV_MIN_CONFIDENCE` | `0.7` |
-| `JEV_ON_NONE` | `force_none` (send `tool_choice: none` when Jev sees no tool needed); `passthrough` to leave it |
+| `JEV_ON_NONE` | `passthrough` (leave the request alone when Jev sees no tool needed); `force_none` sends `tool_choice: none`, but only after the conversation has used a tool |
 | `JEV_ROUTING` | on (`false` starts with routing disabled) |
 | `JEV_BUDGET_MS` | `2500`, the total time Jev may add to one request |
 | `JEV_VERIFY` | on (`false` routes on the first answer alone) |

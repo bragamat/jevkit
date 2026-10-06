@@ -244,7 +244,9 @@ func (r *router) decide(ctx context.Context, in input) decision {
 		return passthrough("jev_answers_disagree", rec)
 	case !wantsTool:
 		// tool_choice none would also break the prompt cache, so hint requests keep theirs.
-		if r.forceNone && in.Steer != steerHint {
+		// Before the first tool call the agent has not looked at anything yet, and
+		// forcing none there made Codex answer without reading the workspace.
+		if r.forceNone && in.Steer != steerHint && usedTools(in.Turns) {
 			return decision{Mode: modeNone, Jev: rec}
 		}
 		return passthrough(noTool, rec)
@@ -422,4 +424,14 @@ func top(m map[string]float64, n int) map[string]float64 {
 		out[k] = m[k]
 	}
 	return out
+}
+
+// usedTools reports whether the conversation already holds a tool call or result.
+func usedTools(turns []turn) bool {
+	for _, t := range turns {
+		if len(t.ToolCalls) > 0 || t.Role == "tool_result" {
+			return true
+		}
+	}
+	return false
 }

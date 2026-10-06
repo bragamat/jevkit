@@ -230,6 +230,8 @@ func TestDecide(t *testing.T) {
 	base := input{Turns: []turn{textTurn("user", "hi")}, Tools: tools, ToolChoice: choiceAuto, Steer: steerToolChoice}
 	hint := base
 	hint.Steer = steerHint
+	afterTool := base
+	afterTool.Turns = []turn{textTurn("user", "hi"), callTurn("Bash", "{}"), resultTurn("Bash", "ok")}
 	cases := []struct {
 		name      string
 		in        input
@@ -240,7 +242,8 @@ func TestDecide(t *testing.T) {
 		{"hint", hint, answer("Bash", 0.9, 0.9), modeHint, ""},
 		{"low confidence", base, answer("Bash", 0.5, 0.9), modePassthrough, "low_confidence"},
 		{"disagree", base, answer("Bash", 0.9, 0.1), modePassthrough, "jev_answers_disagree"},
-		{"none forced", base, answer(noTool, 0.9, 0.1), modeNone, ""},
+		{"none forced after a tool", afterTool, answer(noTool, 0.9, 0.1), modeNone, ""},
+		{"none before any tool", base, answer(noTool, 0.9, 0.1), modePassthrough, noTool},
 		{"none with hint keeps cache", hint, answer(noTool, 0.9, 0.1), modePassthrough, noTool},
 		{"unknown", base, answer("Nope", 0.9, 0.9), modePassthrough, "jev_unknown_tool"},
 		{"hosted", base, answer("web_search", 0.9, 0.9), modePassthrough, "hosted_tool_selected"},

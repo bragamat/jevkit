@@ -71,7 +71,7 @@ func FromEnv(stateDir string) Config {
 			},
 		},
 		MinConfidence:   envFloat("JEV_MIN_CONFIDENCE", 0.7),
-		ForceNone:       envString("JEV_ON_NONE", "force_none") == "force_none",
+		ForceNone:       envString("JEV_ON_NONE", "passthrough") == "force_none",
 		Verify:          envString("JEV_VERIFY", "true") != "false",
 		Routing:         envString("JEV_ROUTING", "true") != "false",
 		Budget:          time.Duration(envInt("JEV_BUDGET_MS", 2500)) * time.Millisecond,
