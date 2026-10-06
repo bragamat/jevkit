@@ -189,6 +189,11 @@ Everything after `--claude` or `--codex` goes to the agent unchanged, for exampl
 `jev --claude --dangerously-skip-permissions` or `jev --codex --yolo`. A `jev-claude` or `jev-codex`
 symlink to `jev` behaves like `jev --claude` / `jev --codex`.
 
+`jev --claude` also sets `ENABLE_TOOL_SEARCH=true` unless you set it yourself. Claude Code turns tool search
+off behind any custom `ANTHROPIC_BASE_URL`, which sends every tool definition, MCP servers included, on every
+request; with it on, tools load on demand. On a session with one MCP server this cut the first request from
+201k to 129k characters.
+
 | Agent | Port | API | How it steers |
 |---|---|---|---|
 | Claude Code | 8789 | Anthropic Messages | a `<system-reminder>` hint, so thinking and prompt caching keep working |

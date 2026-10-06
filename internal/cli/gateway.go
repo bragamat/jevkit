@@ -369,7 +369,7 @@ func (a *App) runAgent(ctx context.Context, agent string, args []string) error {
 	switch agent {
 	case "claude":
 		cmd = exec.CommandContext(agentCtx, bin, args...) //nolint:gosec // the user's own agent
-		cmd.Env = append(os.Environ(), "ANTHROPIC_BASE_URL="+base)
+		cmd.Env = claudeEnv(os.Environ(), base)
 	case "codex":
 		provider := []string{
 			"-c", `model_provider="jev-gateway"`,
@@ -392,4 +392,20 @@ func (a *App) runAgent(ctx context.Context, agent string, args []string) error {
 		return ExitError{Code: exitErr.ExitCode()}
 	}
 	return err
+}
+
+// claudeEnv points Claude Code at the gateway. Claude Code turns tool search off when
+// ANTHROPIC_BASE_URL is not Anthropic's, which puts every tool definition (MCP servers included) in
+// every request; the gateway forwards tool search unchanged, so it is turned back on unless the user
+// chose a value.
+func claudeEnv(environ []string, base string) []string {
+	env := make([]string, 0, len(environ)+2)
+	env = append(env, environ...)
+	env = append(env, "ANTHROPIC_BASE_URL="+base)
+	for _, kv := range environ {
+		if strings.HasPrefix(kv, "ENABLE_TOOL_SEARCH=") {
+			return env
+		}
+	}
+	return append(env, "ENABLE_TOOL_SEARCH=true")
 }
