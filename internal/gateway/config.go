@@ -36,6 +36,7 @@ type Config struct {
 	Budget          time.Duration
 	MaxStateChars   int
 	MaxMessageChars int
+	Diet            DietConfig
 
 	// EventLog keeps one JSON line per routed request; DecisionLog and UsageLog
 	// are jev's own logs, shown on the dashboard.
@@ -77,9 +78,19 @@ func FromEnv(stateDir string) Config {
 		Budget:          time.Duration(envInt("JEV_BUDGET_MS", 2500)) * time.Millisecond,
 		MaxStateChars:   envInt("JEV_MAX_STATE_CHARS", 54000),
 		MaxMessageChars: envInt("JEV_MAX_MESSAGE_CHARS", 4000),
-		EventLog:        envString("JEV_GATEWAY_LOG", filepath.Join(stateDir, "gateway.jsonl")),
-		DecisionLog:     envString("JEV_DECISION_LOG", filepath.Join(stateDir, "decisions.jsonl")),
-		UsageLog:        envString("JEV_USAGE_LOG", filepath.Join(stateDir, "usage.jsonl")),
+		Diet: DietConfig{
+			Mode:        envString("JEV_DIET", DietOff),
+			SkillFloor:  envFloat("JEV_DIET_SKILL_FLOOR", 0.5),
+			MemoryFloor: envFloat("JEV_DIET_MEMORY_FLOOR", 0.5),
+			KeepSkills:  envInt("JEV_DIET_KEEP_SKILLS", 10),
+			KeepMemory:  envInt("JEV_DIET_KEEP_MEMORY", 8),
+			Batch:       envInt("JEV_DIET_BATCH", 20),
+			Budget:      time.Duration(envInt("JEV_DIET_BUDGET_MS", 10000)) * time.Millisecond,
+			Log:         filepath.Join(stateDir, "diet.jsonl"),
+		},
+		EventLog:    envString("JEV_GATEWAY_LOG", filepath.Join(stateDir, "gateway.jsonl")),
+		DecisionLog: envString("JEV_DECISION_LOG", filepath.Join(stateDir, "decisions.jsonl")),
+		UsageLog:    envString("JEV_USAGE_LOG", filepath.Join(stateDir, "usage.jsonl")),
 	}
 }
 

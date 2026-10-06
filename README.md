@@ -217,6 +217,16 @@ jev panels: the decisions other processes log, and today's calls per command. A 
 on and off for the whole gateway, and only the dashboard page itself can flip it. Bind to `127.0.0.1` and
 publish over a private network such as `tailscale serve`, never to the internet.
 
+**Context diet (Claude Code, off by default).** Claude Code repeats its skill listing and the `MEMORY.md`
+index on every request. With `JEV_DIET=on`, the gateway asks Jev once, on a conversation's first request, how
+likely each skill and memory line is to matter given the project instructions and the first prompt. Skills it
+rates unlikely shrink to their name and memory lines to `[Title](file)`, so the agent can still invoke or open
+them. Skills whose description says `TRIGGER` stay whole. The decision is stored and replayed on every later
+turn, so the prompt cache stays valid; a conversation the gateway first sees mid-way, or a Jev error, leaves
+the request untouched. On 8 short tasks × 2 runs, cost fell to 0.64 of the untrimmed arm with every answer
+still correct; trimming every entry without Jev (`JEV_DIET=all`) gave 0.67 with more tool turns.
+`JEV_DIET=ab` splits sessions in half and logs both arms.
+
 | Variable | Default |
 |---|---|
 | `JEV_GATEWAY_HOST` | `127.0.0.1` |
@@ -229,6 +239,10 @@ publish over a private network such as `tailscale serve`, never to the internet.
 | `JEV_BUDGET_MS` | `2500`, the total time Jev may add to one request |
 | `JEV_VERIFY` | on (`false` routes on the first answer alone) |
 | `JEV_MAX_STATE_CHARS` | `54000`, conversation sent to Jev (newest turns kept) |
+| `JEV_DIET` | `off`; `on`, `all` (trim without Jev) or `ab` |
+| `JEV_DIET_SKILL_FLOOR` / `JEV_DIET_MEMORY_FLOOR` | `0.5`, the score (0 unrelated to 2 likely) below which an entry is trimmed |
+| `JEV_DIET_KEEP_SKILLS` / `JEV_DIET_KEEP_MEMORY` | `10` / `8`, best-scored entries always kept whole |
+| `JEV_DIET_BUDGET_MS` | `10000`, the time Jev may take on a conversation's first request |
 | `JEV_GATEWAY_LOG` | `$XDG_STATE_HOME/jev/gateway.jsonl` (rotated at 20 MB) |
 
 ## Output

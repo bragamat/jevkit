@@ -29,6 +29,7 @@ type Gateway struct {
 	router  *router
 	events  *Events
 	http    *http.Client
+	dieter  *dieter
 	routing atomic.Bool
 	started time.Time
 }
@@ -52,6 +53,9 @@ func New(cfg Config, jev jevClient, model string, events *Events) *Gateway {
 		// ends the upstream call when the agent hangs up.
 		http:    &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone()},
 		started: time.Now(),
+	}
+	if cfg.Diet.Mode != DietOff && cfg.Diet.Mode != "" && jev != nil {
+		g.dieter = newDieter(cfg.Diet, jev, model)
 	}
 	g.routing.Store(cfg.Routing)
 	return g
@@ -113,16 +117,30 @@ func (g *Gateway) serve(w http.ResponseWriter, r *http.Request, l Listener) {
 	}
 
 	ev := Event{Time: start, Client: l.Client, Path: r.URL.Path}
-	d, rewritten := g.route(r, l, body, &ev)
+	encoding := r.Header.Get("Content-Encoding")
+	dieted := g.diet(r, l, body, encoding, &ev)
+	routeBody := body
+	if dieted != nil {
+		routeBody, encoding = dieted, ""
+	}
+	d, rewritten := g.route(r, l, routeBody, encoding, &ev)
 	send, plain := body, false
-	if rewritten != nil {
+	switch {
+	case rewritten != nil:
 		send, plain = rewritten, true
+	case dieted != nil:
+		send, plain = dieted, true
 	}
 	resp, err := g.forward(r, l, send, plain) //nolint:bodyclose // closed on replay, else by relay
-	if err == nil && rewritten != nil && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity) {
+	if err == nil && plain && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity) {
 		// The upstream refused the rewrite; the agent gets its own request answered.
 		_ = resp.Body.Close()
-		d = decision{Mode: modePassthrough, Reason: "upstream_rejected_" + d.Mode, Tool: d.Tool, Jev: d.Jev}
+		if rewritten != nil {
+			d = decision{Mode: modePassthrough, Reason: "upstream_rejected_" + d.Mode, Tool: d.Tool, Jev: d.Jev}
+		}
+		if dieted != nil {
+			ev.Diet.Rejected = true
+		}
 		resp, err = g.forward(r, l, body, false) //nolint:bodyclose // relay closes it
 	}
 	ev.Mode, ev.Reason, ev.Jev = d.Mode, d.Reason, d.Jev
@@ -146,16 +164,34 @@ func (g *Gateway) serve(w http.ResponseWriter, r *http.Request, l Listener) {
 	ev.Usage = tap.usage()
 }
 
+// diet trims the skill listing and memory index of Claude requests; it
+// returns the plain new body, or nil to keep the original.
+func (g *Gateway) diet(r *http.Request, l Listener, body []byte, encoding string, ev *Event) []byte {
+	if g.dieter == nil || l.Client != "claude" || strings.EqualFold(r.Header.Get("X-Jev-Gateway"), "off") {
+		return nil
+	}
+	plain, err := decodeBody(body, encoding)
+	if err != nil {
+		return nil
+	}
+	rec := &dietRecord{}
+	out := g.dieter.apply(r.Context(), plain, rec)
+	if rec.Arm != "" {
+		ev.Diet = rec
+	}
+	return out
+}
+
 // route decides one request and returns the rewritten body, or nil to send
 // the original. ev gets the model and tool count.
-func (g *Gateway) route(r *http.Request, l Listener, body []byte, ev *Event) (decision, []byte) {
+func (g *Gateway) route(r *http.Request, l Listener, body []byte, encoding string, ev *Event) (decision, []byte) {
 	if strings.EqualFold(r.Header.Get("X-Jev-Gateway"), "off") {
 		return passthrough("disabled_by_header", nil), nil
 	}
 	if !g.Routing() {
 		return passthrough("routing_disabled", nil), nil
 	}
-	plain, err := decodeBody(body, r.Header.Get("Content-Encoding"))
+	plain, err := decodeBody(body, encoding)
 	if err != nil {
 		return passthrough("unsupported_encoding", nil), nil
 	}

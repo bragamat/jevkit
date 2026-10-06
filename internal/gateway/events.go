@@ -12,21 +12,22 @@ import (
 
 // Event is one routed request, as logged and shown on the dashboard.
 type Event struct {
-	ID         int64      `json:"id"`
-	Event      string     `json:"event"`
-	Time       time.Time  `json:"time"`
-	Client     string     `json:"client"`
-	Path       string     `json:"path"`
-	Model      string     `json:"model,omitempty"`
-	Tools      int        `json:"tools"`
-	Mode       string     `json:"mode"`
-	Reason     string     `json:"reason,omitempty"`
-	Tool       string     `json:"tool,omitempty"`
-	Confidence float64    `json:"confidence,omitempty"`
-	Status     int        `json:"status"`
-	DurationMs int64      `json:"durationMs"`
-	Usage      *llmUsage  `json:"usage,omitempty"`
-	Jev        *jevRecord `json:"jev,omitempty"`
+	ID         int64       `json:"id"`
+	Event      string      `json:"event"`
+	Time       time.Time   `json:"time"`
+	Client     string      `json:"client"`
+	Path       string      `json:"path"`
+	Model      string      `json:"model,omitempty"`
+	Tools      int         `json:"tools"`
+	Mode       string      `json:"mode"`
+	Reason     string      `json:"reason,omitempty"`
+	Tool       string      `json:"tool,omitempty"`
+	Confidence float64     `json:"confidence,omitempty"`
+	Status     int         `json:"status"`
+	DurationMs int64       `json:"durationMs"`
+	Usage      *llmUsage   `json:"usage,omitempty"`
+	Jev        *jevRecord  `json:"jev,omitempty"`
+	Diet       *dietRecord `json:"diet,omitempty"`
 }
 
 const (
