@@ -141,5 +141,5 @@ These match TypeSafe's own cookbooks, which we read too late:
   - which listed entries to keep: marginal over "trim all";
   - whether the conversation changed topic: promising, but the saving depends on acting on it.
 
-We are archiving jevkit with that result. The code stays here as a reference for proxying Claude Code and
+We removed the gateway with that result; it remains in git history (up to e1cd2ea) as a reference for proxying Claude Code and
 Codex, cache-safe request rewriting, and using a calibrated classifier inside an agent loop.

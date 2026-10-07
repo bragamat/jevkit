@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -30,26 +29,11 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	root := cli.NewRoot(cli.NewApp(), versionString())
-	// A jev-claude or jev-codex symlink to this binary runs that launcher, as
-	// the npm jev-gateway's commands of the same names did.
-	name := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	if agent, ok := strings.CutPrefix(name, "jev-"); ok && (agent == "claude" || agent == "codex") {
-		root.SetArgs(append([]string{agent}, os.Args[1:]...))
-	}
-	// jev --claude ARGS / jev --codex ARGS: everything after the flag belongs to
-	// the agent, so it is dispatched before cobra parses any flags.
-	if len(os.Args) > 1 && (os.Args[1] == "--claude" || os.Args[1] == "--codex") {
-		root.SetArgs(append([]string{strings.TrimPrefix(os.Args[1], "--")}, os.Args[2:]...))
-	}
 	cmd, err := root.ExecuteContextC(ctx)
 	if err == nil {
 		return 0
 	}
-	var exit cli.ExitError
-	if errors.As(err, &exit) {
-		return exit.Code
-	}
-	name = "jev"
+	name := "jev"
 	if cmd != nil && cmd != root {
 		name += " " + cmd.Name()
 	}

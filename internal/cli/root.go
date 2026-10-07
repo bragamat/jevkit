@@ -59,12 +59,7 @@ func NewRoot(a *App, version string) *cobra.Command {
 	root.AddGroup(
 		&cobra.Group{ID: "read", Title: "Reading:"},
 		&cobra.Group{ID: "decide", Title: "Deciding:"},
-		&cobra.Group{ID: "gateway", Title: "Gateway:"},
 	)
-	// Handled in main before parsing, so the agent's own flags pass through; declared
-	// here only so --help lists them.
-	root.Flags().Bool("claude", false, "start Claude Code through the gateway; every later argument goes to claude")
-	root.Flags().Bool("codex", false, "start Codex through the gateway; every later argument goes to codex")
 	root.PersistentFlags().BoolVar(&a.jsonOut, "json", false, "print JSON")
 	root.PersistentFlags().StringVar(&a.model, "model", "", "model name (default: $TYPESAFE_DEFAULT_MODEL or jev-latest)")
 
@@ -190,6 +185,5 @@ func NewRoot(a *App, version string) *cobra.Command {
 		c.Args = usageArgs(c.Args)
 	}
 	root.AddCommand(find, pick, triage, check, decide, yesno, score, usage, models)
-	root.AddCommand(a.gatewayCommands()...)
 	return root
 }

@@ -1,8 +1,7 @@
 # jevkit
 
-> **Archived.** This project is no longer maintained. [docs/STUDIES.md](docs/STUDIES.md) records what we
-> measured while trying to cut coding-agent token use with Jev, and why we stopped. Released binaries keep
-> working; there will be no new releases.
+> The gateway, context diet and pruning experiments were removed; [docs/STUDIES.md](docs/STUDIES.md)
+> records what they measured. jevkit is now only the CLI an agent can call as a tool.
 
 `jev` is a command-line toolkit that puts **Jev**, TypeSafe's System One model, in a coding agent's toolbox.
 
@@ -174,80 +173,6 @@ probably wrong.
 
 Every decision is appended to a local log (see [Files](#files)) so you can audit what the agent decided
 and why.
-
-## Gateway
-
-`jev gateway` is a local proxy between a coding agent and its LLM. Before each request reaches the
-model, Jev reads the conversation and the tool list and predicts which tool the next step needs. When it is
-confident, the gateway steers the request; otherwise it passes the request through unchanged. Responses,
-including streams, go back byte for byte.
-
-```sh
-jev --claude [ARGS]   # Claude Code through the gateway (starts it if needed)
-jev --codex [ARGS]    # Codex through the gateway (ChatGPT login or API key)
-jev gateway status    # ports, upstreams, routing state
-jev gateway start|stop|run
-```
-
-Everything after `--claude` or `--codex` goes to the agent unchanged, for example
-`jev --claude --dangerously-skip-permissions` or `jev --codex --yolo`. A `jev-claude` or `jev-codex`
-symlink to `jev` behaves like `jev --claude` / `jev --codex`.
-
-`jev --claude` also sets `ENABLE_TOOL_SEARCH=true` unless you set it yourself. Claude Code turns tool search
-off behind any custom `ANTHROPIC_BASE_URL`, which sends every tool definition, MCP servers included, on every
-request; with it on, tools load on demand. On a session with one MCP server this cut the first request from
-201k to 129k characters.
-
-| Agent | Port | API | How it steers |
-|---|---|---|---|
-| Claude Code | 8789 | Anthropic Messages | a `<system-reminder>` hint, so thinking and prompt caching keep working |
-| Codex | 8790 | OpenAI Responses | `tool_choice` set to the predicted tool, or `none` |
-
-Gateway failures never fail the agent's request: a Jev error, timeout or low confidence means passthrough,
-and an upstream 400/422 on a rewritten body is replayed with the original body. Every response carries
-`x-jev-gateway-mode`, `-tool`, `-reason`, `-confidence` and `-latency-ms`. Send `x-jev-gateway: off` to skip
-routing for one request.
-
-**How it asks Jev.** Two short requests, in the shape of TypeSafe's skill-suggestion cookbook. The first
-asks which tool comes next, in two option orders (jev-1.13 leans toward the first option, so the orders must
-agree, with `no_tool_needed` first in the main one), plus whether a tool is needed at all. The second
-re-checks the top three tools with one yes/no question each, using their full descriptions; if none fits at
-least 0.3, the request passes through. More than 120 tools are shortlisted first, in as many parallel requests
-as the 64k-token limit needs. Set `JEV_VERIFY=false` to skip the second request.
-
-**Dashboard.** `http://127.0.0.1:8789/dashboard` shows the gateway and jev live over SSE. Gateway
-panels: requests per mode, why requests were not steered, Jev latency, and LLM and Jev tokens with cost.
-jev panels: the decisions other processes log, and today's calls per command. A switch turns routing
-on and off for the whole gateway, and only the dashboard page itself can flip it. Bind to `127.0.0.1` and
-publish over a private network such as `tailscale serve`, never to the internet.
-
-**Context diet (Claude Code, off by default).** Claude Code repeats its skill listing and the `MEMORY.md`
-index on every request. With `JEV_DIET=on`, the gateway asks Jev once, on a conversation's first request, how
-likely each skill and memory line is to matter given the project instructions and the first prompt. Skills it
-rates unlikely shrink to their name and memory lines to `[Title](file)`, so the agent can still invoke or open
-them. Skills whose description says `TRIGGER` stay whole. The decision is stored and replayed on every later
-turn, so the prompt cache stays valid; a conversation the gateway first sees mid-way, or a Jev error, leaves
-the request untouched. On 8 short tasks × 2 runs, cost fell to 0.64 of the untrimmed arm with every answer
-still correct; trimming every entry without Jev (`JEV_DIET=all`) gave 0.67 with more tool turns.
-`JEV_DIET=ab` splits sessions in half and logs both arms.
-
-| Variable | Default |
-|---|---|
-| `JEV_GATEWAY_HOST` | `127.0.0.1` |
-| `JEV_CLAUDE_PORT` / `JEV_CODEX_PORT` | `8789` / `8790` |
-| `JEV_CLAUDE_UPSTREAM_BASE_URL` | `https://api.anthropic.com/v1` |
-| `JEV_CODEX_UPSTREAM_BASE_URL` | ChatGPT backend with a ChatGPT login, else `https://api.openai.com/v1` |
-| `JEV_MIN_CONFIDENCE` | `0.7` |
-| `JEV_ON_NONE` | `passthrough` (leave the request alone when Jev sees no tool needed); `force_none` sends `tool_choice: none`, but only after the conversation has used a tool |
-| `JEV_ROUTING` | on (`false` starts with routing disabled) |
-| `JEV_BUDGET_MS` | `2500`, the total time Jev may add to one request |
-| `JEV_VERIFY` | on (`false` routes on the first answer alone) |
-| `JEV_MAX_STATE_CHARS` | `54000`, conversation sent to Jev (newest turns kept) |
-| `JEV_DIET` | `off`; `on`, `all` (trim without Jev) or `ab` |
-| `JEV_DIET_SKILL_FLOOR` / `JEV_DIET_MEMORY_FLOOR` | `0.5`, the score (0 unrelated to 2 likely) below which an entry is trimmed |
-| `JEV_DIET_KEEP_SKILLS` / `JEV_DIET_KEEP_MEMORY` | `10` / `8`, best-scored entries always kept whole |
-| `JEV_DIET_BUDGET_MS` | `10000`, the time Jev may take on a conversation's first request |
-| `JEV_GATEWAY_LOG` | `$XDG_STATE_HOME/jev/gateway.jsonl` (rotated at 20 MB) |
 
 ## Output
 
