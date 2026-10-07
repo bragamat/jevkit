@@ -1,5 +1,9 @@
 # jevkit
 
+> **Archived.** This project is no longer maintained. [docs/STUDIES.md](docs/STUDIES.md) records what we
+> measured while trying to cut coding-agent token use with Jev, and why we stopped. Released binaries keep
+> working; there will be no new releases.
+
 `jev` is a command-line toolkit that puts **Jev**, TypeSafe's System One model, in a coding agent's toolbox.
 
 Coding agents (Claude Code, Codex, Cursor, …) spend most of their budget re-reading context. Every file an
